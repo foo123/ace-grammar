@@ -1,0 +1,71 @@
+<!doctype html>
+<html>
+    <head>
+        
+        <meta charset="utf-8">
+        
+        <!-- required -->
+        <script src="../build/regexanalyzer.min.js"></script>
+        <script src="ace/ace.js" data-ace-base="ace" type="text/javascript" charset="utf-8"></script>
+        <script src="../build/ace_grammar.js"></script>
+        <script src="grammars/css.js"></script>
+        
+        <title>ACE: Dynamic CSS Grammar Demo</title>
+    </head>
+    <body>
+        
+        <h3>ACE: Dynamic CSS Grammar</h3>
+
+        <div id="editor-container">
+        <textarea id="code" name="code">
+/* Some example CSS */
+
+@import url("something.css");
+
+body {
+  margin: 0;
+  padding: 3em 6em;
+  font-family: tahoma, arial, sans-serif;
+  color: #000;
+}
+
+#navigation a {
+  font-weight: bold;
+  text-decoration: none !important;
+}
+
+h1 {
+  font-size: 2.5em;
+}
+
+h2 {
+  font-size: 1.7em;
+}
+
+h1:before, h2:before {
+  content: "::";
+}
+
+code {
+  font-family: courier, monospace;
+  font-size: 80%;
+  color: #418A8A;
+}
+        </textarea>
+        </div>
+        <p></p>
+
+        <script>
+        // <![CDATA[
+        
+        // requires the RegExAnalyzer
+        AceGrammar.init( RegExAnalyzer );
+        
+        // 2. parse the grammar into an ACE syntax-highlight mode
+        var css_mode = AceGrammar.getMode(css_grammar);
+        
+        
+        // ]]>
+        </script>
+    </body>
+</html>

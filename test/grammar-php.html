@@ -1,0 +1,67 @@
+<!doctype html>
+<html>
+    <head>
+        
+        <meta charset="utf-8">
+        
+        <!-- required -->
+        <script src="../build/regexanalyzer.min.js"></script>
+        <script src="ace/ace.js" data-ace-base="ace" type="text/javascript" charset="utf-8"></script>
+        <script src="../build/ace_grammar.js"></script>
+        <script src="grammars/php.js"></script>
+        
+        <title>ACE: Dynamic PHP Grammar Demo</title>
+    </head>
+    <body>
+        
+        <h3>ACE: Dynamic PHP Grammar</h3>
+
+        <div id="editor-container">
+        <textarea id="code" name="code">
+$a = (isset($var) && NULL==$b) ? true : false;
+// this is a line comment
+#  this is also a line comment
+define("DEF", "123")
+
+/*
+    this is
+    a
+    multiline
+    comment
+*/
+
+$heredoc = <<<EOF
+a 
+    heredoc 
+string
+
+EOF;
+
+$s1 = `this is a string`;
+$s2 = "this is also a string with escaped \" ' quotes"; $foo123;
+$s3 = 'this is also a string with escaped " \' quotes';
+
+function a_function( &$v1, $v2 )
+{
+    static $num = (.0123 + 345) || 12;
+    global $int = 123;
+    return $this->is_a_method();
+}
+        </textarea>
+        </div>
+        <p></p>
+
+        <script>
+        // <![CDATA[
+        
+        // requires the RegExAnalyzer
+        AceGrammar.init( RegExAnalyzer );
+        
+        // 2. parse the grammar into an ACE syntax-highlight mode
+        var php_mode = AceGrammar.getMode(php_grammar);
+        
+        
+        // ]]>
+        </script>
+    </body>
+</html>
