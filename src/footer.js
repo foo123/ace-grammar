@@ -4,7 +4,7 @@
     
     else if ('undefined' != typeof (exports)) exports = self;
     
-    else this.CodeMirrorGrammar = self;
+    else this.AceGrammar = self;
 
     
 }).call(this);

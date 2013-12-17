@@ -6,9 +6,24 @@
         
         <!-- required -->
         <script src="../build/regexanalyzer.min.js"></script>
-        <script src="ace/ace.js" data-ace-base="ace" type="text/javascript" charset="utf-8"></script>
+        <script src="ace/ace.js" type="text/javascript" data-ace-base="ace" charset="utf-8"></script>
         <script src="../build/ace_grammar.js"></script>
         <script src="grammars/xml.js"></script>
+        
+        <style type="text/css" media="screen">
+            body {
+                overflow: hidden;
+            }
+
+            #code { 
+                margin: 0;
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                right: 0;
+            }
+        </style>
         
         <title>ACE: Dynamic XML Grammar Demo</title>
     </head>
@@ -16,8 +31,7 @@
         
         <h3>ACE: Dynamic XML Grammar</h3>
         
-        <div id="editor-container">
-        <textarea id="code" name="code">
+        <pre id="code">
 &lt;html style = "color: green"&gt;
     &lt;!-- this is a comment --&gt;
     &lt;head&gt;
@@ -36,8 +50,7 @@
         I mean&amp;quot;&lt;/em&gt;... but might not match your style.
     &lt;/body&gt;
 &lt;/html&gt;
-        </textarea>
-        </div>
+        </pre>
         <p></p>
 
         <script>
@@ -47,8 +60,12 @@
         AceGrammar.init( RegExAnalyzer );
         
         // 2. parse the grammar into an ACE syntax-highlight mode
-        var xml_mode = AceGrammar.getMode(xml_grammar);
+        var xml_mode = AceGrammar.getMode( xml_grammar );
         
+        // 3. use it with ACE
+        var editor = ace.edit("code");
+        editor.setTheme("ace/theme/twilight");
+        editor.getSession().setMode( xml_mode );
         
         // ]]>
         </script>

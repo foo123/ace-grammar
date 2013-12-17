@@ -33,7 +33,7 @@ Already parsed grammars are NOT re-parsed when passed through the parse method a
 __Method__: *getMode*
 
 ```javascript
-mode = AceGrammar.getMode(grammar [, DEFAULT]);
+mode = AceGrammar.getMode(grammar, [, DEFAULT]);
 ```
 
 This is the main method which transforms a JSON grammar into an ACE syntax-highlight parser.

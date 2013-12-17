@@ -17,18 +17,18 @@ var js_grammar = {
     //
     // Style model
     "Style" : {
-        // lang token type  -> CodeMirror (style) tag
+        // lang token type  -> ACE (style) tag
         "error":      "error",
         "comment":    "comment",
         "atom":       "atom",
-        "keyword":    "keyword",
-        "builtin":    "builtin",
+        "keyword":    "storage",
+        "builtin":    "support",
         "operator":   "operator",
-        "identifier": "variable",
-        "property":   "attribute",
-        "number":     "number",
+        "identifier": "identifier",
+        "property":   "constant",
+        "number":     "numeric",
         "string":     "string",
-        "regex":      "string-2"
+        "regex":      "regexp"
     },
 
     

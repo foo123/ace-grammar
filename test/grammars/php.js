@@ -18,17 +18,17 @@ var php_grammar = {
         //
         // Style model
         "Style" : {
-            // lang token type  -> CodeMirror (style) tag
+            // lang token type  -> ACE (style) tag
             "error":       "error",
             "meta":        "meta",
             "comment":     "comment",
             "atom":        "atom",
-            "keyword":     "keyword",
-            "builtin":     "builtin",
+            "keyword":     "storage",
+            "builtin":     "support",
             "operator":    "operator",
-            "identifier":  "variable",
-            "variable":    "variable-2",
-            "number":      "number",
+            "identifier":  "identifier",
+            "variable":    "variable",
+            "number":      "numeric",
             "string":      "string",
             "heredoc":     "string"
         },

@@ -22,8 +22,7 @@ var css_grammar = {
         //
         // Style model
         "Style" : {
-            // lang token type  -> CodeMirror (style) tag
-            // the mapping here is used to match the codemirror css demo color scheme
+            // lang token type  -> ACE (style) tag
             "error":        "error",
             "comment":      "comment",
             "meta":         "attribute",
@@ -34,12 +33,12 @@ var css_grammar = {
             "url":          "tag",
             "operator":     "operator",
             "font":         "variable-2",
-            "standard":     "keyword",
-            "cssID":        "builtin",
+            "standard":     "storage",
+            "cssID":        "support",
             "cssClass":     "qualifier",
-            "identifier":   "variable-2",
-            "number":       "number",
-            "number2":      "builtin",
+            "identifier":   "variable",
+            "number":       "numeric",
+            "number2":      "support",
             "string":       "string",
             "unquotedText": "string"
         },

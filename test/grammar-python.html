@@ -6,9 +6,24 @@
         
         <!-- required -->
         <script src="../build/regexanalyzer.min.js"></script>
-        <script src="ace/ace.js" data-ace-base="ace" type="text/javascript" charset="utf-8"></script>
+        <script src="ace/ace.js" type="text/javascript" data-ace-base="ace" charset="utf-8"></script>
         <script src="../build/ace_grammar.js"></script>
         <script src="grammars/python.js"></script>
+        
+        <style type="text/css" media="screen">
+            body {
+                overflow: hidden;
+            }
+
+            #code { 
+                margin: 0;
+                position: absolute;
+                top: 0;
+                bottom: 0;
+                left: 0;
+                right: 0;
+            }
+        </style>
         
         <title>ACE: Dynamic Python Grammar Demo</title>
     </head>
@@ -16,8 +31,7 @@
         
         <h3>ACE: Dynamic Python Grammar</h3>
 
-        <div id="editor-container">
-        <textarea id="code" name="code">
+        <pre id="code">
 # Literals
 1234
 0.0e101
@@ -105,8 +119,7 @@ class ExampleClass(ParentClass):
     def __init__(self, mixin = 'Hello'):
         self.mixin = mixin
 
-        </textarea>
-        </div>
+        </pre>
         <p></p>
 
         <script>
@@ -116,8 +129,12 @@ class ExampleClass(ParentClass):
         AceGrammar.init( RegExAnalyzer );
         
         // 2. parse the grammar into an ACE syntax-highlight mode
-        var python_mode = AceGrammar.getMode(python_grammar);
+        var python_mode = AceGrammar.getMode( python_grammar );
         
+        // 3. use it with ACE
+        var editor = ace.edit("code");
+        editor.setTheme("ace/theme/twilight");
+        editor.getSession().setMode( python_mode );
         
         // ]]>
         </script>

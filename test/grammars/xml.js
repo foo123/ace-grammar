@@ -12,7 +12,7 @@ var xml_grammar = {
         //
         // Style model
         "Style" : {
-            // lang token type  -> CodeMirror (style) tag
+            // lang token type  -> ACE (style) tag
             "error":                "error",
             "commentBlock":         "comment",
             "metaBlock":            "meta",
@@ -24,8 +24,8 @@ var xml_grammar = {
             "closeTag":             "tag",
             "attribute":            "attribute",
             "assignment":           "operator",
-            "number":               "number",
-            "number2":              "number",
+            "number":               "numeric",
+            "number2":              "numeric",
             "string":               "string"
         },
 

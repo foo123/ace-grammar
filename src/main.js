@@ -76,7 +76,7 @@
             // Style model
             "Style" : {
                 
-                // lang token type  -> CodeMirror (style) tag
+                // lang token type  -> ACE (style) tag
                 "error":                "error"
             },
 
@@ -85,13 +85,38 @@
             "Lex" : null,
             
             //
-            // Syntax model and context-specific rules
+            // Syntax model and context-specific rules (optional)
             "Syntax" : null,
             
             // what to parse and in what order
             "Parser" : null
         }
     ;
+    
+    /*
+    var ace_OOP_inherits = (function() {
+        var createObject = Object.create || function(prototype, properties) {
+            var Type = function () {};
+            Type.prototype = prototype;
+            object = new Type();
+            object.__proto__ = prototype;
+            if (typeof properties !== 'undefined' && Object.defineProperties) {
+                Object.defineProperties(object, properties);
+            }
+        };
+        return function(ctor, superCtor) {
+            ctor.super_ = superCtor;
+            ctor.prototype = createObject(superCtor.prototype, {
+                constructor: {
+                    value: ctor,
+                    enumerable: false,
+                    writable: true,
+                    configurable: true
+                }
+            });
+        };
+    }());
+    */
     
     //
     //  Ace Grammar main class
@@ -137,12 +162,12 @@
         [/DOC_MARKDOWN]**/
         parse : parse,
         
-        // get a codemirror syntax-highlight mode from a grammar
+        // get an ACE-compatible syntax-highlight mode from a grammar
         /**[DOC_MARKDOWN]
         * __Method__: *getMode*
         *
         * ```javascript
-        * mode = AceGrammar.getMode(grammar [, DEFAULT]);
+        * mode = AceGrammar.getMode(grammar, [, DEFAULT]);
         * ```
         *
         * This is the main method which transforms a JSON grammar into an ACE syntax-highlight parser.
@@ -160,48 +185,84 @@
                 LOCALS = { 
                     // default return code, when no match or empty found
                     // 'null' should be used in most cases
-                    DEFAULT: DEFAULT || null
+                    DEFAULT: DEFAULT || "invisible"
                 },
-                parser, indentation
+                parser, aceMode
             ;
             
-            parser = parserFactory( grammar, LOCALS );
-            indentation = indentationFactory( LOCALS );
-            
             // generate parser with token factories (grammar, LOCALS are available locally by closures)
-            return function(conf, parserConf) {
+            parser = parserFactory( grammar, LOCALS );
+            
+            aceMode = {
                 
-                LOCALS.conf = conf;
-                LOCALS.parserConf = parserConf;
+                // the custom Parser/Tokenizer
+                getTokenizer : function(){
+                    return function() { 
+                        return parser;
+                    };
+                }(),
                 
-                // return the (codemirror) parser mode for the grammar
-                return  {
-                    startState: function(  ) {
-                        
-                        return {
-                            stack : null,
-                            //context : new Context({indentation:0, prev: null}),
-                            current : null,
-                            currentToken : T_DEFAULT
-                        };
-                    },
-                    
-                    electricChars : (grammar.electricChars) ? grammar.electricChars : false,
-                    
-                    /*
-                    // maybe needed in the future
-                    
-                    copyState: function( state ) { },
-                    
-                    blankLine: function( state ) { },
-                    
-                    innerMode: function( state ) { },
-                    */
-                    
-                    token: parser,
-                    
-                    indent: indentation
-                };
+
+                /*
+                *   Maybe needed in later versions..
+                */
+                
+                HighlightRules : null, //TextHighlightRules;
+                $behaviour : null, //new Behaviour();
+
+                lineCommentStart : "",
+                blockComment : "",
+
+                toggleCommentLines : function(state, session, startRow, endRow) {
+                    return false;
+                },
+
+                toggleBlockComment : function(state, session, range, cursor) {
+                },
+
+                getNextLineIndent : function(state, line, tab) {
+                    return line.match(/^\s*/)[0];
+                },
+
+                checkOutdent : function(state, line, input) {
+                    return false;
+                },
+
+                autoOutdent : function(state, doc, row) {
+                },
+
+                $getIndent : function(line) {
+                    return line.match(/^\s*/)[0];
+                },
+
+                createWorker : function(session) {
+                    return null;
+                },
+
+                createModeDelegates : function (mapping) {
+                },
+
+                $delegator : function(method, args, defaultHandler) {
+                },
+
+                transformAction : function(state, action, editor, session, param) {
+                },
+                
+                getKeywords : function( append ) {
+                    return [];
+                },
+                
+                $createKeywordList : function() {
+                    return [];
+                },
+
+                getCompletions : function(state, session, pos, prefix) {
+                    return [];
+                }
+                
             };
+            
+            // ACE Mode compatible
+            return aceMode;
         }
     };

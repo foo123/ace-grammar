@@ -17,15 +17,15 @@ var python_grammar = {
         //
         // Style model
         "Style" : {
-            // lang token type  -> CodeMirror (style) tag
+            // lang token type  -> ACE (style) tag
             "error":        "error",
             "decorator":    "meta",
             "comment":      "comment",
-            "keyword":      "keyword",
-            "builtin":      "builtin",
+            "keyword":      "storage",
+            "builtin":      "support",
             "operator":     "operator",
-            "identifier":   "variable",
-            "number":       "number",
+            "identifier":   "identifier",
+            "number":       "numeric",
             "string":       "string",
             "heredoc":      "string"
         },
