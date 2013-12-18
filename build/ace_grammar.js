@@ -1431,7 +1431,7 @@
                     if ( !stream.eol() )
                     {
                         // unknown, bypass
-                        stream.skipToEnd();
+                        stream.next();
                         state.current = null;
                         state.currentToken = T_DEFAULT;
                         tokens.push( { type: DEFAULT, value: stream.current() } );
