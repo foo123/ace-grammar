@@ -171,7 +171,7 @@
         * ```
         *
         * This is the main method which transforms a JSON grammar into an ACE syntax-highlight parser.
-        * DEFAULT is the default return value (null by default) for things that are skipped or not styled
+        * DEFAULT is the default return value ("invisible" by default) for things that are skipped or not styled
         * In general there is no need to set this value, unlees you need to return something else
         [/DOC_MARKDOWN]**/
         getMode : function(grammar, DEFAULT) {

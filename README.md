@@ -1,14 +1,47 @@
 ace-grammar
 ===========
 
-Transform a JSON grammar into a syntax-highlight parser for ACE Editor
+__Transform a JSON grammar into an ACE syntax-highlight parser__
 
-__Examples (see /test folder)__:
+
+
+A simple and light-weight ( ~ 10kB minified) [ACE](https://github.com/ajaxorg/ace) add-on
+
+to generate syntax-highlight parsers (ace modes) from a grammar specification in JSON format.
+
+
+__This is work in progress__
+
+###Contents
+
+* [Todo](#todo)
+* [Features](#features)
+* [How To use](#examples)
+* [API Reference](/api-reference.md)
+* [Other Examples](#examples)
+
+
+###Todo
+
+Indentation, Behaviours, etc.. are ACE defaults, looking for ways to add more elaborate indentation rules to the grammar specification. (maybe add "actions" to the grammar syntax part ?? )
+
+
+
+###Features
+
+* A grammar can extend another grammar (so arbitrary variations and dialects can be parsed more easily)
+* Grammar includes: Style Model, Lex Model and Syntax Model (optional), plus a couple of settings (see examples)
+* Generated syntax-highlight parsers are optimized for speed
+* Can generate a syntax-highlight parser from a grammar interactively and on-the-fly
+
+
+###Examples:
+
+See working examples under [/test](/test) folder.
 
 ![grammar-js](/test/grammar-js.png)
 
 ![grammar-css](/test/grammar-css.png)
-
 
 ![grammar-xml](/test/grammar-xml.png)
 
