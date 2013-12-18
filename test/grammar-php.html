@@ -15,7 +15,7 @@
                 position: relative;
             }
 
-            #code { 
+            #editor { 
                 margin: 0;
                 position: relative;
                 width: 100%;
@@ -31,7 +31,8 @@
         
         <h3>ACE: Dynamic PHP Grammar</h3>
 
-        <pre id="code">
+        <pre id="editor"></pre>
+        <textarea id="code" style="display:none">
 $a = (isset($var) && NULL==$b) ? true : false;
 // this is a line comment
 #  this is also a line comment
@@ -61,7 +62,7 @@ function a_function( &$v1, $v2 )
     global $int = 123;
     return $this->is_a_method();
 }
-        </pre>
+        </textarea>
         <p></p>
 
         <script>
@@ -74,7 +75,8 @@ function a_function( &$v1, $v2 )
         var php_mode = AceGrammar.getMode( php_grammar );
         
         // 3. use it with ACE
-        var editor = ace.edit("code");
+        var editor = ace.edit("editor");
+        editor.setValue(document.getElementById("code").value);
         editor.getSession().setMode( php_mode );
         
         // ]]>

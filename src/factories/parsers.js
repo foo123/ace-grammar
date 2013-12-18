@@ -2,220 +2,163 @@
     //
     // parser factories
     var
-        /*stackTrace = function(stack) {
-            console.log( "Stack Trace Begin" );
+        Parser = Extends(Object, {
             
-            for (var i=stack.length-1; i>=0; i--)
-                console.log( stack[i].toString() );
-            
-            console.log( "Stack Trace End" );
-        },*/
-        
-        // a class resembling Codemirror StringStream for compatibility mode
-        Stream = Extends(Object, {
-            
-            constructor: function( line ) {
-                this.string = new String(line);
-                this.pos = this.start = 0;
+            constructor: function(grammar, LOCALS) {
+                this.LOCALS = LOCALS;
+                this.Style = grammar.Style || {};
+                this.tokens = grammar.Parser || [];
+                this.state = null;
             },
             
-            string: '',
-            start: 0,
-            pos: 0,
+            LOCALS: null,
+            Style: null,
+            tokens: null,
+            state: null,
             
-            eol: function() { 
-                return this.pos >= this.string.length; 
+            resetState: function() {
+                return this.state = { stack: [], inBlock: null, current: null, currentToken: T_DEFAULT };
             },
             
-            sol: function() { 
-                return 0 == this.pos; 
-            },
-            
-            peek: function() { 
-                return this.string.charAt(this.pos) || undefined; 
-            },
-            
-            next: function() {
-                if (this.pos < this.string.length)
-                    return this.string.charAt(this.pos++);
-            },
-            
-            eat: function(match) {
-                var ch = this.string.charAt(this.pos);
-                if ("string" == typeof match) var ok = ch == match;
-                else var ok = ch && (match.test ? match.test(ch) : match(ch));
-                if (ok) 
+            // ACE Tokenizer compatible
+            getLineTokens: function(line, aceState) {
+                
+                var i, numTokens = this.tokens.length, rewind, token, style, stream, state, stack, tokens;
+                
+                var ERROR = this.Style.error || "error";
+                var DEFAULT = this.LOCALS.DEFAULT;
+                
+                if ( !aceState )
                 {
-                    ++this.pos; 
-                    return ch;
+                    this.resetState();
+                    aceState = "inParser";
                 }
-            },
-            
-            eatWhile: function(match) {
-                var start = this.pos;
-                while ( this.eat(match) ) {}
-                return this.pos > start;
-            },
-            
-            eatSpace: function() {
-                var start = this.pos;
-                while (/[\s\u00a0]/.test(this.string.charAt(this.pos))) ++this.pos;
-                return this.pos > start;
-            },
-            
-            current: function() {
-                var c = this.string.slice(this.start, this.pos);
-                this.start = this.pos;
-                return c;
+                
+                state = this.state;
+                stack = state.stack;
+                stream = new Stream( line );
+                tokens = []; 
+                
+                while ( !stream.eol() )
+                {
+                    rewind = false;
+                    
+                    if ( stream.eatSpace() ) 
+                    {
+                        state.current = null;
+                        state.currentToken = T_DEFAULT;
+                        tokens.push( { type: DEFAULT, value: stream.current() } );
+                        stream.shift();
+                        continue;
+                    }
+                    
+                    while ( stack.length && !stream.eol() )
+                    {
+                        token = stack.pop();
+                        style = token.tokenize(stream, state, this.LOCALS);
+                        
+                        // match failed
+                        if ( false === style )
+                        {
+                            // error
+                            if ( token.ERROR || token.isRequired )
+                            {
+                                // empty the stack
+                                state.stack.length = 0;
+                                // skip this character
+                                stream.next();
+                                // generate error
+                                state.current = null;
+                                state.currentToken = T_ERROR;
+                                tokens.push( { type: ERROR, value: stream.current() } );
+                                stream.shift();
+                                rewind = true;
+                                break;
+                            }
+                            // optional
+                            else
+                            {
+                                continue;
+                            }
+                        }
+                        // found token
+                        else
+                        {
+                            state.current = token.tokenName;
+                            tokens.push( { type: style, value: stream.current() } );
+                            stream.shift();
+                            rewind = true;
+                            break;
+                        }
+                    }
+                    
+                    if ( rewind ) continue;
+                    
+                    if ( !stream.eol() )
+                    {
+                        for (i=0; i<numTokens; i++)
+                        {
+                            token = this.tokens[i];
+                            style = token.tokenize(stream, state, this.LOCALS);
+                            
+                            // match failed
+                            if ( false === style )
+                            {
+                                // error
+                                if ( token.ERROR || token.isRequired )
+                                {
+                                    // empty the stack
+                                    state.stack.length = 0;
+                                    // skip this character
+                                    stream.next();
+                                    // generate error
+                                    state.current = null;
+                                    state.currentToken = T_ERROR;
+                                    tokens.push( { type: ERROR, value: stream.current() } );
+                                    stream.shift();
+                                    rewind = true;
+                                    break;
+                                }
+                                // optional
+                                else
+                                {
+                                    continue;
+                                }
+                            }
+                            // found token
+                            else
+                            {
+                                state.current = token.tokenName;
+                                tokens.push( { type: style, value: stream.current() } );
+                                stream.shift();
+                                rewind = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if ( rewind ) continue;
+                    
+                    if ( !stream.eol() )
+                    {
+                        // unknown, bypass
+                        stream.next();
+                        state.current = null;
+                        state.currentToken = T_DEFAULT;
+                        tokens.push( { type: DEFAULT, value: stream.current() } );
+                        stream.shift();
+                    }
+                }
+                
+                //console.log(tokens);
+                
+                // ACE Tokenizer compatible
+                return { state: aceState, tokens: tokens };
             }
         }),
         
         parserFactory = function(grammar, LOCALS) {
-            
-            var parser = {
-                
-                getLineTokens: function() {
-                    
-                    var DEFAULT = LOCALS.DEFAULT,
-                        Style = grammar.Style || {},
-                        ERROR = Style.error || "error",
-                        tokens = grammar.Parser || [],
-                        numTokens = tokens.length,
-                        state = { stack: [], inBlock: null, current: null, currentToken: T_DEFAULT }
-                    ;
-                    
-                    return function(line, stateAce) {
-                
-                        // ACE Tokenizer compatible
-                        var i, rewind, token, style, stack, aceTokens = [], stream = new Stream( line );
-                        
-                        stack = state.stack;
-                        
-                        while ( !stream.eol() )
-                        {
-                            rewind = false;
-                            
-                            if ( stream.eatSpace() ) 
-                            {
-                                state.current = null;
-                                state.currentToken = T_DEFAULT;
-                                aceTokens.push( { type: DEFAULT, value: stream.current() } );
-                                continue;
-                            }
-                            
-                            //stackTrace(stack);
-                            
-                            while ( stack.length && !stream.eol() )
-                            {
-                                token = stack.pop();
-                                
-                                /*if ( T_ACTION == token.type )
-                                {
-                                    console.log(token.toString());
-                                    token.doAction(stream, state, LOCALS);
-                                    continue;
-                                }*/
-                                
-                                style = token.tokenize(stream, state, LOCALS);
-                                
-                                // match failed
-                                if ( false === style )
-                                {
-                                    // error
-                                    if ( token.ERROR || token.isRequired )
-                                    {
-                                        // empty the stack
-                                        state.stack.length = 0;
-                                        // skip this character
-                                        stream.next();
-                                        //console.log(["ERROR", stream.current()]);
-                                        // generate error
-                                        state.current = null;
-                                        state.currentToken = T_ERROR;
-                                        aceTokens.push( { type: ERROR, value: stream.current() } );
-                                        rewind = true;
-                                        break;
-                                    }
-                                    // optional
-                                    else
-                                    {
-                                        continue;
-                                    }
-                                }
-                                // found token
-                                else
-                                {
-                                    state.current = token.tokenName;
-                                    aceTokens.push( { type: style, value: stream.current() } );
-                                    rewind = true;
-                                    break;
-                                }
-                            }
-                            
-                            if ( rewind ) continue;
-                            
-                            if ( !stream.eol() )
-                            {
-                                for (i=0; i<numTokens; i++)
-                                {
-                                    token = tokens[i];
-                                    style = token.tokenize(stream, state, LOCALS);
-                                    
-                                    // match failed
-                                    if ( false === style )
-                                    {
-                                        // error
-                                        if ( token.ERROR || token.isRequired )
-                                        {
-                                            // empty the stack
-                                            state.stack.length = 0;
-                                            // skip this character
-                                            stream.next();
-                                            //console.log(["ERROR", stream.current()]);
-                                            // generate error
-                                            state.current = null;
-                                            state.currentToken = T_ERROR;
-                                            aceTokens.push( { type: ERROR, value: stream.current() } );
-                                            rewind = true;
-                                            break;
-                                        }
-                                        // optional
-                                        else
-                                        {
-                                            continue;
-                                        }
-                                    }
-                                    // found token
-                                    else
-                                    {
-                                        state.current = token.tokenName;
-                                        aceTokens.push( { type: style, value: stream.current() } );
-                                        rewind = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            
-                            if ( rewind ) continue;
-                            
-                            if ( !stream.eol() )
-                            {
-                                // unknown, bypass
-                                stream.next();
-                                state.current = null;
-                                state.currentToken = T_DEFAULT;
-                                aceTokens.push( { type: DEFAULT, value: stream.current() } );
-                            }
-                        }
-                        
-                        //console.log(aceTokens);
-                        
-                        // ACE Tokenizer compatible
-                        return { state: stateAce, tokens: aceTokens };
-                    }
-                }()
-            }
-            return parser;
+            return new Parser(grammar, LOCALS);
         }
     ;
   

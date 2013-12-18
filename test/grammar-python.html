@@ -15,7 +15,7 @@
                 position: relative;
             }
 
-            #code { 
+            #editor { 
                 margin: 0;
                 position: relative;
                 width: 100%;
@@ -31,7 +31,8 @@
         
         <h3>ACE: Dynamic Python Grammar</h3>
 
-        <pre id="code">
+        <pre id="editor"></pre>
+        <textarea id="code" style="display:none">
 # Literals
 1234
 0.0e101
@@ -119,7 +120,7 @@ class ExampleClass(ParentClass):
     def __init__(self, mixin = 'Hello'):
         self.mixin = mixin
 
-        </pre>
+        </textarea>
         <p></p>
 
         <script>
@@ -132,7 +133,8 @@ class ExampleClass(ParentClass):
         var python_mode = AceGrammar.getMode( python_grammar );
         
         // 3. use it with ACE
-        var editor = ace.edit("code");
+        var editor = ace.edit("editor");
+        editor.setValue(document.getElementById("code").value);
         editor.getSession().setMode( python_mode );
         
         // ]]>

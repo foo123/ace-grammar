@@ -1,5 +1,37 @@
     
     var 
+        //
+        // default grammar settings
+        defaultGrammar = {
+            
+            // prefix ID for regular expressions used in the grammar
+            "RegExpID" : null,
+            
+            // lists of (simple/string) tokens to be grouped into one regular expression,
+            // else matched one by one, 
+            // this is usefull for speed fine-tuning the parser
+            "RegExpGroups" : null,
+            
+            //
+            // Style model
+            "Style" : {
+                
+                // lang token type  -> ACE (style) tag
+                "error":                "error"
+            },
+
+            //
+            // Lexical model
+            "Lex" : null,
+            
+            //
+            // Syntax model and context-specific rules (optional)
+            "Syntax" : null,
+            
+            // what to parse and in what order
+            "Parser" : null
+        },
+        
         parse = function(grammar) {
             var RegExpID, RegExpGroups, tokens, numTokens, _tokens, 
                 Style, Lex, Syntax, t, tokenID, token, tok,
@@ -58,65 +90,8 @@
             grammar.__parsed = true;
             
             return grammar;
-        },
-        
-        //
-        // default grammar settings
-        defaultGrammar = {
-            
-            // prefix ID for regular expressions used in the grammar
-            "RegExpID" : null,
-            
-            // lists of (simple/string) tokens to be grouped into one regular expression,
-            // else matched one by one, 
-            // this is usefull for speed fine-tuning the parser
-            "RegExpGroups" : null,
-            
-            //
-            // Style model
-            "Style" : {
-                
-                // lang token type  -> ACE (style) tag
-                "error":                "error"
-            },
-
-            //
-            // Lexical model
-            "Lex" : null,
-            
-            //
-            // Syntax model and context-specific rules (optional)
-            "Syntax" : null,
-            
-            // what to parse and in what order
-            "Parser" : null
         }
     ;
-    
-    /*
-    var ace_OOP_inherits = (function() {
-        var createObject = Object.create || function(prototype, properties) {
-            var Type = function () {};
-            Type.prototype = prototype;
-            object = new Type();
-            object.__proto__ = prototype;
-            if (typeof properties !== 'undefined' && Object.defineProperties) {
-                Object.defineProperties(object, properties);
-            }
-        };
-        return function(ctor, superCtor) {
-            ctor.super_ = superCtor;
-            ctor.prototype = createObject(superCtor.prototype, {
-                constructor: {
-                    value: ctor,
-                    enumerable: false,
-                    writable: true,
-                    configurable: true
-                }
-            });
-        };
-    }());
-    */
     
     //
     //  Ace Grammar main class
@@ -176,6 +151,8 @@
         [/DOC_MARKDOWN]**/
         getMode : function(grammar, DEFAULT) {
             
+            DEFAULTTYPE = "invisible";
+            
             // build the grammar
             grammar = parse( grammar );
             
@@ -184,31 +161,23 @@
             var 
                 LOCALS = { 
                     // default return code, when no match or empty found
-                    // 'text' should be used in most cases
+                    // 'invisible' should be used in most cases
                     DEFAULT: DEFAULT || DEFAULTTYPE
-                },
-                parser, aceMode
+                }
             ;
             
-            // generate parser with token factories (grammar, LOCALS are available locally by closures)
-            parser = parserFactory( grammar, LOCALS );
-            
-            aceMode = {
+            var mode = {
                 
                 // the custom Parser/Tokenizer
-                getTokenizer : function(){
-                    return function() { 
-                        return parser;
-                    };
-                }(),
+                getTokenizer : function( parser ){ return function() { return parser; }; }( parserFactory( grammar, LOCALS ) ),
                 
 
                 /*
                 *   Maybe needed in later versions..
                 */
                 
-                HighlightRules : null, //TextHighlightRules;
-                $behaviour : null, //new Behaviour();
+                HighlightRules : null,
+                $behaviour : null, //new Behaviour(),
 
                 lineCommentStart : "",
                 blockComment : "",
@@ -263,6 +232,6 @@
             };
             
             // ACE Mode compatible
-            return aceMode;
+            return mode;
         }
     };
