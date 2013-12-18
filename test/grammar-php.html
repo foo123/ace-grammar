@@ -31,12 +31,12 @@
         
         <h3>ACE: Dynamic PHP Grammar</h3>
 
-        <pre id="editor"></pre>
-        <textarea id="code" style="display:none">
+<pre id="editor"></pre>
+<textarea id="code" style="display:none">
 $a = (isset($var) && NULL==$b) ? true : false;
 // this is a line comment
 #  this is also a line comment
-define("DEF", "123")
+define("DEF", "123");
 
 /*
     this is
@@ -62,7 +62,7 @@ function a_function( &$v1, $v2 )
     global $int = 123;
     return $this->is_a_method();
 }
-        </textarea>
+</textarea>
         <p></p>
 
         <script>
@@ -77,7 +77,7 @@ function a_function( &$v1, $v2 )
         // 3. use it with ACE
         var editor = ace.edit("editor");
         editor.setValue(document.getElementById("code").value);
-        editor.getSession().setMode( php_mode );
+        editor.getSession().setMode( /*"ace/mode/php"*/ php_mode );
         
         // ]]>
         </script>

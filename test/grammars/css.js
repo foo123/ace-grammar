@@ -8,14 +8,14 @@ var css_grammar = {
         // else matched one by one, 
         // this is usefull for speed fine-tuning the parser
         "RegExpGroups" : {
-            "font" : true,
+            "font" : "[\\s,]",
             "standard" : true,
             "atom" : true,
             "meta" : true,
             "meta2" : true,
-            "property" : true,
-            "element" : true,
-            "operator" : true,
+            "property" : "\\b",
+            "element" : "\\b",
+            "operator" : "\\b",
             "delimiter" : true
         },
             
@@ -26,26 +26,28 @@ var css_grammar = {
             "error":        "error",
             "comment":      "comment",
             "meta":         "attribute",
-            "meta2":        "def",
-            "atom":         "string",
-            "property":     "constant",
-            "element":      "keyword",
-            "url":          "keyword",
+            "meta2":        "constant",
+            "atom":         "support.constant",
+            "property":     "support.type",
+            "element":      "constant",
+            "url":          "constant",
             "operator":     "operator",
-            "font":         "variable",
-            "standard":     "keyword",
+            "delimiter":    "text",
+            "font":         "support.constant.fonts",
+            "standard":     "text",
             "cssID":        "keyword",
-            "cssClass":     "qualifier",
+            "cssClass":     "variable",
+            "cssPseudoElement": "string",
             "identifier":   "variable",
-            "number":       "numeric",
-            "number2":      "keyword",
+            "number":       "constant.numeric",
+            "number2":      "constant.numeric",
             "string":       "string",
-            "unquotedText": "string",
-            "leftBracket": "text",
+            "text":         "string",
+            "leftBracket":  "text",
             "rightBracket": "text",
-            "leftParen": "text",
-            "rightParen": "text",
-            "assignment": "text",
+            "leftParen":    "text",
+            "rightParen":   "text",
+            "assignment":   "text",
             "endAssignment": "text"
         },
 
@@ -91,6 +93,11 @@ var css_grammar = {
                 "tokens" : "RegExp::\\.[_A-Za-z][_A-Za-z0-9]*"
             },
             
+            "cssPseudoElement" : {
+                "type" : "simple",
+                "tokens" : "RegExp::::?[_A-Za-z][_A-Za-z0-9]*"
+            },
+            
             // general identifiers
             "identifier" : {
                 "type" : "simple",
@@ -131,7 +138,7 @@ var css_grammar = {
                 ]
             },
             
-            "unquotedText" : {
+            "text" : {
                 "type" : "simple",
                 "tokens" : "RegExp::[^\\(\\)\\[\\]\\{\\}'\"]+"
             },
@@ -140,7 +147,7 @@ var css_grammar = {
             "operator" : {
                 "type" : "simple",
                 "tokens" : [
-                    "::", "*", "+", ",", "=", ";", ">"
+                    "*", "+", ",", "=", ";", ">"
                 ]
             },
             
@@ -237,7 +244,7 @@ var css_grammar = {
                     "header", "footer", "nav",
                     "div", "span", "section", "strong",
                     "blockquote", 
-                    "before", "after", "url"
+                    "url"
                 ]
             },
             
@@ -254,7 +261,7 @@ var css_grammar = {
             "stringOrUnquotedText" : {
                 "type" : "group",
                 "match" : "either",
-                "tokens" : [ "string", "unquotedText" ]
+                "tokens" : [ "string", "text" ]
             },
             
             // highlight url(...) as string regardless of quotes or not
@@ -302,12 +309,14 @@ var css_grammar = {
             "urlDeclaration",
             "number",
             "cssID",
+            "cssClass",
+            "cssPseudoElement",
+            "delimiter",
             "number2",
             "string",
             "element",
             "meta",
             "meta2",
-            "cssClass",
             "cssBlock"
         ]
 };

@@ -39,9 +39,11 @@ Indentation, Behaviours, etc.. are ACE defaults, looking for ways to add more el
 
 See working examples under [/test](/test) folder.
 
-![grammar-js](/test/grammar-js.png)
+![css-grammar](/test/grammar-css.png)
 
-![grammar-css](/test/grammar-css.png)
+![xml-grammar](/test/grammar-xml.png)
 
-![grammar-xml](/test/grammar-xml.png)
+![python-grammar](/test/grammar-python.png)
+
+![php-grammar](/test/grammar-php.png)
 

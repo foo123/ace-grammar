@@ -31,8 +31,8 @@
         
         <h3>ACE: Dynamic CSS Grammar</h3>
 
-        <pre id="editor"></pre>
-        <textarea id="code" style="display:none">
+<pre id="editor"></pre>
+<textarea id="code" style="display:none">
 /* Some example CSS */
 
 @import url("something.css");
@@ -66,7 +66,7 @@ code {
   font-size: 80%;
   color: #418A8A;
 }
-        </textarea>
+</textarea>
         <p></p>
 
         <script>
@@ -81,7 +81,7 @@ code {
         // 3. use it with ACE
         var editor = ace.edit("editor");
         editor.setValue(document.getElementById("code").value);
-        editor.getSession().setMode( css_mode );
+        editor.getSession().setMode( /*"ace/mode/css"*/ css_mode );
         
         // ]]>
         </script>

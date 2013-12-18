@@ -27,7 +27,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * ***** END LICENSE BLOCK ***** */
-define('ace/mode/jsoniq', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/mode/xquery/JSONiqLexer', 'ace/range', 'ace/mode/behaviour/xquery', 'ace/mode/folding/cstyle'], function(require, exports, module) {
+ace.define('ace/mode/jsoniq', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/text', 'ace/mode/xquery/JSONiqLexer', 'ace/range', 'ace/mode/behaviour/xquery', 'ace/mode/folding/cstyle'], function(require, exports, module) {
 
 
 var oop = require("../lib/oop");
@@ -105,7 +105,7 @@ oop.inherits(Mode, TextMode);
 exports.Mode = Mode;
 });
  
-define('ace/mode/xquery/JSONiqLexer', ['require', 'exports', 'module' , 'ace/mode/xquery/JSONiqTokenizer'], function(require, exports, module) {
+ace.define('ace/mode/xquery/JSONiqLexer', ['require', 'exports', 'module' , 'ace/mode/xquery/JSONiqTokenizer'], function(require, exports, module) {
   
   var JSONiqTokenizer = require("./JSONiqTokenizer").JSONiqTokenizer;
   
@@ -378,7 +378,7 @@ exports.JSONiqLexer = function() {
 };
 });
 
-                                                            define('ace/mode/xquery/JSONiqTokenizer', ['require', 'exports', 'module' ], function(require, exports, module) {
+                                                            ace.define('ace/mode/xquery/JSONiqTokenizer', ['require', 'exports', 'module' ], function(require, exports, module) {
                                                             var JSONiqTokenizer = exports.JSONiqTokenizer = function JSONiqTokenizer(string, parsingEventHandler)
                                                             {
                                                               init(string, parsingEventHandler);
@@ -2198,7 +2198,7 @@ JSONiqTokenizer.TOKEN =
   "'}}'"
 ];
                                                             });
-define('ace/mode/behaviour/xquery', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/mode/behaviour/cstyle', 'ace/mode/behaviour/xml', 'ace/token_iterator'], function(require, exports, module) {
+ace.define('ace/mode/behaviour/xquery', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/mode/behaviour/cstyle', 'ace/mode/behaviour/xml', 'ace/token_iterator'], function(require, exports, module) {
 
 
   var oop = require("../../lib/oop");
@@ -2262,7 +2262,7 @@ function hasType(token, type) {
   exports.XQueryBehaviour = XQueryBehaviour;
 });
 
-define('ace/mode/behaviour/cstyle', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/token_iterator', 'ace/lib/lang'], function(require, exports, module) {
+ace.define('ace/mode/behaviour/cstyle', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/token_iterator', 'ace/lib/lang'], function(require, exports, module) {
 
 
 var oop = require("../../lib/oop");
@@ -2585,7 +2585,7 @@ oop.inherits(CstyleBehaviour, Behaviour);
 exports.CstyleBehaviour = CstyleBehaviour;
 });
 
-define('ace/mode/behaviour/xml', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/mode/behaviour/cstyle', 'ace/token_iterator'], function(require, exports, module) {
+ace.define('ace/mode/behaviour/xml', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/mode/behaviour', 'ace/mode/behaviour/cstyle', 'ace/token_iterator'], function(require, exports, module) {
 
 
 var oop = require("../../lib/oop");
@@ -2659,7 +2659,7 @@ oop.inherits(XmlBehaviour, Behaviour);
 exports.XmlBehaviour = XmlBehaviour;
 });
 
-define('ace/mode/folding/cstyle', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/mode/folding/fold_mode'], function(require, exports, module) {
+ace.define('ace/mode/folding/cstyle', ['require', 'exports', 'module' , 'ace/lib/oop', 'ace/range', 'ace/mode/folding/fold_mode'], function(require, exports, module) {
 
 
 var oop = require("../../lib/oop");

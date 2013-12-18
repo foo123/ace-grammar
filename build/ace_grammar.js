@@ -185,6 +185,7 @@
             return o;
         }
     ;
+    
     //
     // Stream Class
     var
@@ -310,9 +311,8 @@
                 return this;
             },
             
-            backTrack: function( pos ) {
-                var n = this.pos - pos;
-                this.pos -= n;
+            backTo: function( pos ) {
+                this.pos = pos;
                 if ( this.stream )
                     this.stream.pos = this.pos;
                 return this;
@@ -335,7 +335,8 @@
                 return this;
             }
         })
-    ;    
+    ;
+        
     //
     // matcher factories
     var ESC = /([\-\.\*\+\?\^\$\{\}\(\)\|\[\]\/\\])/g,
@@ -946,7 +947,7 @@
                 this.streamPos = stream.pos;
                 var style = this.token.tokenize(stream, state);
                 
-                if ( token.ERROR ) stream.backTrack( this.streamPos );
+                if ( token.ERROR ) stream.backTo( this.streamPos );
                 
                 return style;
             }
@@ -985,7 +986,7 @@
                     else if ( token.ERROR )
                     {
                         tokensErr++;
-                        stream.backTrack( this.streamPos );
+                        stream.backTo( this.streamPos );
                     }
                 }
                 
@@ -1036,7 +1037,7 @@
                     else if ( token.ERROR )
                     {
                         tokensErr++;
-                        stream.backTrack( this.streamPos );
+                        stream.backTo( this.streamPos );
                     }
                 }
                 
@@ -1076,7 +1077,7 @@
                     else if ( token.ERROR )
                     {
                         tokensErr++;
-                        stream.backTrack( this.streamPos );
+                        stream.backTo( this.streamPos );
                     }
                 }
                 
@@ -1122,7 +1123,7 @@
                 else if ( token.ERROR )
                 {
                     this.ERROR = true;
-                    stream.backTrack( this.streamPos );
+                    stream.backTo( this.streamPos );
                 }
                 else if ( token.isRequired )
                 {
@@ -1168,7 +1169,7 @@
                 else if ( token.ERROR )
                 {
                     //this.ERROR = true;
-                    stream.backTrack( this.streamPos );
+                    stream.backTo( this.streamPos );
                 }
                 
                 return ret;
@@ -1280,36 +1281,52 @@
                 this.LOCALS = LOCALS;
                 this.Style = grammar.Style || {};
                 this.tokens = grammar.Parser || [];
-                this.state = null;
             },
             
             LOCALS: null,
             Style: null,
             tokens: null,
-            state: null,
             
-            resetState: function() {
-                return this.state = { stack: [], inBlock: null, current: null, currentToken: T_DEFAULT };
+            resetState: function( state ) {
+                state = state || {};
+                state.stack = []; 
+                state.inBlock = null; 
+                state.current = null; 
+                state.currentToken = T_DEFAULT;
+                state.init = null;
+                return state;
+            },
+            
+            copyState: function( state ) {
+                var copy = {};
+                for (var k in state)
+                {
+                    if ( T_ARRAY == get_type(state[k]) )
+                        copy[k] = state[k].slice();
+                    else
+                        copy[k] = state[k];
+                }
+                return copy;
             },
             
             // ACE Tokenizer compatible
-            getLineTokens: function(line, aceState) {
+            getLineTokens: function(line, state, row) {
                 
-                var i, numTokens = this.tokens.length, rewind, token, style, stream, state, stack, tokens;
+                var i, numTokens = this.tokens.length, rewind, token, style, stream, stack, tokens, startBlock = 0;
                 
                 var ERROR = this.Style.error || "error";
                 var DEFAULT = this.LOCALS.DEFAULT;
                 
-                if ( !aceState )
-                {
-                    this.resetState();
-                    aceState = "inParser";
-                }
-                
-                state = this.state;
+                if ( !state ) state = this.resetState( state );
+                state = this.copyState( state );
                 stack = state.stack;
                 stream = new Stream( line );
                 tokens = []; 
+                
+                if ( !state.inBlock )
+                {
+                    startBlock = 1;
+                }
                 
                 while ( !stream.eol() )
                 {
@@ -1414,7 +1431,7 @@
                     if ( !stream.eol() )
                     {
                         // unknown, bypass
-                        stream.next();
+                        stream.skipToEnd();
                         state.current = null;
                         state.currentToken = T_DEFAULT;
                         tokens.push( { type: DEFAULT, value: stream.current() } );
@@ -1422,14 +1439,24 @@
                     }
                 }
                 
+                if ( startBlock && state.inBlock )
+                {
+                    state.startBlock = 1;
+                }
+                else
+                {
+                    state.startBlock = 0;
+                }
+                
                 //console.log(tokens);
+                //console.log(state);
                 
                 // ACE Tokenizer compatible
-                return { state: aceState, tokens: tokens };
+                return { state: state, tokens: tokens };
             }
         }),
         
-        parserFactory = function(grammar, LOCALS) {
+        getParser = function(grammar, LOCALS) {
             return new Parser(grammar, LOCALS);
         }
     ;
@@ -1601,68 +1628,48 @@
                 }
             ;
             
+            var parser = getParser( grammar, LOCALS );
             var mode = {
                 
                 // the custom Parser/Tokenizer
-                getTokenizer : function( parser ){ return function() { return parser; }; }( parserFactory( grammar, LOCALS ) ),
+                getTokenizer: function( parser ){ return function() { return parser; }; }( parser ),
                 
 
                 /*
                 *   Maybe needed in later versions..
                 */
                 
-                HighlightRules : null,
-                $behaviour : null, //new Behaviour(),
+                HighlightRules: null,
+                $behaviour: null, //new Behaviour(),
 
-                lineCommentStart : "",
-                blockComment : "",
+                lineCommentStart: "",
+                blockComment: "",
 
-                toggleCommentLines : function(state, session, startRow, endRow) {
-                    return false;
-                },
+                toggleCommentLines: function(state, session, startRow, endRow) { return false; },
 
-                toggleBlockComment : function(state, session, range, cursor) {
-                },
+                toggleBlockComment: function(state, session, range, cursor) {  },
 
-                getNextLineIndent : function(state, line, tab) {
-                    return line.match(/^\s*/)[0];
-                },
+                getNextLineIndent: function(state, line, tab) { return line.match(/^\s*/)[0];  },
 
-                checkOutdent : function(state, line, input) {
-                    return false;
-                },
+                checkOutdent: function(state, line, input) { return false; },
 
-                autoOutdent : function(state, doc, row) {
-                },
+                autoOutdent: function(state, doc, row) { },
 
-                $getIndent : function(line) {
-                    return line.match(/^\s*/)[0];
-                },
+                $getIndent: function(line) { return line.match(/^\s*/)[0]; },
 
-                createWorker : function(session) {
-                    return null;
-                },
+                createWorker: function(session) { return null; },
 
-                createModeDelegates : function (mapping) {
-                },
+                createModeDelegates: function (mapping) { },
 
-                $delegator : function(method, args, defaultHandler) {
-                },
+                $delegator: function(method, args, defaultHandler) { },
 
-                transformAction : function(state, action, editor, session, param) {
-                },
+                transformAction: function(state, action, editor, session, param) { },
                 
-                getKeywords : function( append ) {
-                    return [];
-                },
+                getKeywords: function( append ) { return []; },
                 
-                $createKeywordList : function() {
-                    return [];
-                },
+                $createKeywordList: function() { return []; },
 
-                getCompletions : function(state, session, pos, prefix) {
-                    return [];
-                }
+                getCompletions: function(state, session, pos, prefix) { return []; }
                 
             };
             

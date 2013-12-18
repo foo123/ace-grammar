@@ -24,8 +24,8 @@ var xml_grammar = {
             "closeTag":             "keyword",
             "attribute":            "variable",
             "assignment":           "operator",
-            "number":               "numeric",
-            "number2":              "numeric",
+            "number":               "constant.numeric",
+            "number2":              "constant.numeric",
             "string":               "string",
             "assignment": "text"
         },

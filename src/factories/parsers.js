@@ -8,36 +8,52 @@
                 this.LOCALS = LOCALS;
                 this.Style = grammar.Style || {};
                 this.tokens = grammar.Parser || [];
-                this.state = null;
             },
             
             LOCALS: null,
             Style: null,
             tokens: null,
-            state: null,
             
-            resetState: function() {
-                return this.state = { stack: [], inBlock: null, current: null, currentToken: T_DEFAULT };
+            resetState: function( state ) {
+                state = state || {};
+                state.stack = []; 
+                state.inBlock = null; 
+                state.current = null; 
+                state.currentToken = T_DEFAULT;
+                state.init = null;
+                return state;
+            },
+            
+            copyState: function( state ) {
+                var copy = {};
+                for (var k in state)
+                {
+                    if ( T_ARRAY == get_type(state[k]) )
+                        copy[k] = state[k].slice();
+                    else
+                        copy[k] = state[k];
+                }
+                return copy;
             },
             
             // ACE Tokenizer compatible
-            getLineTokens: function(line, aceState) {
+            getLineTokens: function(line, state, row) {
                 
-                var i, numTokens = this.tokens.length, rewind, token, style, stream, state, stack, tokens;
+                var i, numTokens = this.tokens.length, rewind, token, style, stream, stack, tokens, startBlock = 0;
                 
                 var ERROR = this.Style.error || "error";
                 var DEFAULT = this.LOCALS.DEFAULT;
                 
-                if ( !aceState )
-                {
-                    this.resetState();
-                    aceState = "inParser";
-                }
-                
-                state = this.state;
+                if ( !state ) state = this.resetState( state );
+                state = this.copyState( state );
                 stack = state.stack;
                 stream = new Stream( line );
                 tokens = []; 
+                
+                if ( !state.inBlock )
+                {
+                    startBlock = 1;
+                }
                 
                 while ( !stream.eol() )
                 {
@@ -142,7 +158,7 @@
                     if ( !stream.eol() )
                     {
                         // unknown, bypass
-                        stream.next();
+                        stream.skipToEnd();
                         state.current = null;
                         state.currentToken = T_DEFAULT;
                         tokens.push( { type: DEFAULT, value: stream.current() } );
@@ -150,14 +166,24 @@
                     }
                 }
                 
+                if ( startBlock && state.inBlock )
+                {
+                    state.startBlock = 1;
+                }
+                else
+                {
+                    state.startBlock = 0;
+                }
+                
                 //console.log(tokens);
+                //console.log(state);
                 
                 // ACE Tokenizer compatible
-                return { state: aceState, tokens: tokens };
+                return { state: state, tokens: tokens };
             }
         }),
         
-        parserFactory = function(grammar, LOCALS) {
+        getParser = function(grammar, LOCALS) {
             return new Parser(grammar, LOCALS);
         }
     ;

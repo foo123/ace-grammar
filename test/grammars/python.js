@@ -19,14 +19,14 @@ var python_grammar = {
         "Style" : {
             // lang token type  -> ACE (style) tag
             "error":        "error",
-            "decorator":    "constant",
+            "decorator":    "constant.support",
             "comment":      "comment",
             "keyword":      "keyword",
-            "builtin":      "keyword",
+            "builtin":      "constant.support",
             "operator":     "operator",
             "delimiter":    "text",
             "identifier":   "identifier",
-            "number":       "numeric",
+            "number":       "constant.numeric",
             "string":       "string",
             "heredoc":      "string"
         },
@@ -113,7 +113,7 @@ var python_grammar = {
                 "tokens" : [ 
                     "(", ")", "[", "]", "{", "}", ",", ":", "`", "=", ";", ".",
                     "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", 
-                    ">>=", "<<=", "//=", "**=" 
+                    ">>=", "<<=", "//=", "**=", "@"
                 ]
             },
             
@@ -160,11 +160,11 @@ var python_grammar = {
             "heredoc",
             "number",
             "string",
+            "decorator",
             "operator",
             "delimiter",
             "keyword",
             "builtin",
-            "decorator",
             "identifier"
         ]
 };

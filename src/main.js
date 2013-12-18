@@ -166,68 +166,48 @@
                 }
             ;
             
+            var parser = getParser( grammar, LOCALS );
             var mode = {
                 
                 // the custom Parser/Tokenizer
-                getTokenizer : function( parser ){ return function() { return parser; }; }( parserFactory( grammar, LOCALS ) ),
+                getTokenizer: function( parser ){ return function() { return parser; }; }( parser ),
                 
 
                 /*
                 *   Maybe needed in later versions..
                 */
                 
-                HighlightRules : null,
-                $behaviour : null, //new Behaviour(),
+                HighlightRules: null,
+                $behaviour: null, //new Behaviour(),
 
-                lineCommentStart : "",
-                blockComment : "",
+                lineCommentStart: "",
+                blockComment: "",
 
-                toggleCommentLines : function(state, session, startRow, endRow) {
-                    return false;
-                },
+                toggleCommentLines: function(state, session, startRow, endRow) { return false; },
 
-                toggleBlockComment : function(state, session, range, cursor) {
-                },
+                toggleBlockComment: function(state, session, range, cursor) {  },
 
-                getNextLineIndent : function(state, line, tab) {
-                    return line.match(/^\s*/)[0];
-                },
+                getNextLineIndent: function(state, line, tab) { return line.match(/^\s*/)[0];  },
 
-                checkOutdent : function(state, line, input) {
-                    return false;
-                },
+                checkOutdent: function(state, line, input) { return false; },
 
-                autoOutdent : function(state, doc, row) {
-                },
+                autoOutdent: function(state, doc, row) { },
 
-                $getIndent : function(line) {
-                    return line.match(/^\s*/)[0];
-                },
+                $getIndent: function(line) { return line.match(/^\s*/)[0]; },
 
-                createWorker : function(session) {
-                    return null;
-                },
+                createWorker: function(session) { return null; },
 
-                createModeDelegates : function (mapping) {
-                },
+                createModeDelegates: function (mapping) { },
 
-                $delegator : function(method, args, defaultHandler) {
-                },
+                $delegator: function(method, args, defaultHandler) { },
 
-                transformAction : function(state, action, editor, session, param) {
-                },
+                transformAction: function(state, action, editor, session, param) { },
                 
-                getKeywords : function( append ) {
-                    return [];
-                },
+                getKeywords: function( append ) { return []; },
                 
-                $createKeywordList : function() {
-                    return [];
-                },
+                $createKeywordList: function() { return []; },
 
-                getCompletions : function(state, session, pos, prefix) {
-                    return [];
-                }
+                getCompletions: function(state, session, pos, prefix) { return []; }
                 
             };
             

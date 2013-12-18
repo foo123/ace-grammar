@@ -29,7 +29,7 @@ var php_grammar = {
             "delimiter":    "text",
             "identifier":  "identifier",
             "variable":    "variable",
-            "number":      "numeric",
+            "number":      "constant.numeric",
             "string":      "string",
             "heredoc":     "string"
         },

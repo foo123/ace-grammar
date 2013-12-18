@@ -30,7 +30,7 @@
  *
  * ***** END LICENSE BLOCK ***** */
 
-define('ace/ext/themelist', ['require', 'exports', 'module' , 'ace/ext/themelist_utils/themes'], function(require, exports, module) {
+ace.define('ace/ext/themelist', ['require', 'exports', 'module' , 'ace/ext/themelist_utils/themes'], function(require, exports, module) {
 module.exports.themes = require('ace/ext/themelist_utils/themes').themes;
 module.exports.ThemeDescription = function(name) {
     this.name = name;
@@ -52,7 +52,7 @@ module.exports.themes = module.exports.themes.map(function(name) {
 
 });
 
-define('ace/ext/themelist_utils/themes', ['require', 'exports', 'module' ], function(require, exports, module) {
+ace.define('ace/ext/themelist_utils/themes', ['require', 'exports', 'module' ], function(require, exports, module) {
 
 module.exports.themes = [
     "ambiance",

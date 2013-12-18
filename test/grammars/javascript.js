@@ -23,13 +23,15 @@ var js_grammar = {
         "comment":    "comment",
         "atom":       "constant",
         "keyword":    "keyword",
-        "builtin":    "keyword",
+        "this":       "keyword",
+        "builtin":    "support",
         "operator":   "operator",
         "delimiter":    "text",
-        "dot":    "text",
+        "rightBracket": "text",
+        "dot":          "text",
         "identifier": "identifier",
-        "property":   "constant",
-        "number":     "string.numeric",
+        "property":   "constant.support",
+        "number":     "constant.numeric",
         "string":     "string",
         "regex":      "string.regexp"
     },
@@ -65,7 +67,12 @@ var js_grammar = {
         
         "rightBracket" : {
             "type" : "simple",
-            "tokens" : "]"
+            "tokens" : ["]", ")"]
+        },
+        
+        "this" : {
+            "type" : "simple",
+            "tokens" : "this"
         },
         
         "property" : {
@@ -149,7 +156,7 @@ var js_grammar = {
                 "return", "break", "continue", "new", "delete", "throw",
                 "var", "const", "let", "function", "catch",
                 "for", "switch", "case", "default",
-                "in", "typeof", "instanceof", "this"
+                "in", "typeof", "instanceof"
             ]
         },
         
@@ -167,16 +174,16 @@ var js_grammar = {
     // Syntax model
     "Syntax" : {
         
-        "builtinOrIdentifier" : {
-            "type" : "group",
-            "match" : "either",
-            "tokens" : [ "rightBracket", "builtin", "identifier" ]
-        },
-        
         "dotProperty" : {
             "type" : "group",
             "match" : "all",
             "tokens" : [ "dot", "property" ]
+        },
+        
+        "builtinOrIdentifier" : {
+            "type" : "group",
+            "match" : "either",
+            "tokens" : [ "rightBracket", "this", "builtin", "identifier", "dotProperty" ]
         },
         
         "dotProperties" : {
@@ -201,8 +208,8 @@ var js_grammar = {
         "regex",
         "keyword",
         "operator",
-        "delimiter",
         "atom",
-        "builtinOrIdentifierWithProperties"
+        "builtinOrIdentifierWithProperties",
+        "delimiter"
     ]
 };
