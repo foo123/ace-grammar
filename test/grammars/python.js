@@ -19,11 +19,12 @@ var python_grammar = {
         "Style" : {
             // lang token type  -> ACE (style) tag
             "error":        "error",
-            "decorator":    "meta",
+            "decorator":    "constant",
             "comment":      "comment",
-            "keyword":      "storage",
-            "builtin":      "support",
+            "keyword":      "keyword",
+            "builtin":      "keyword",
             "operator":     "operator",
+            "delimiter":    "text",
             "identifier":   "identifier",
             "number":       "numeric",
             "string":       "string",

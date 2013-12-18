@@ -10,8 +10,9 @@ var js_grammar = {
     "RegExpGroups" : {
         "atom" : "\\b",
         "keyword" : "\\b",
-        "builtin" : true,
-        "operator" : true
+        "builtin" : "\\b",
+        "operator" : true,
+        "delimiter" : true
     },
         
     //
@@ -20,15 +21,17 @@ var js_grammar = {
         // lang token type  -> ACE (style) tag
         "error":      "error",
         "comment":    "comment",
-        "atom":       "atom",
-        "keyword":    "storage",
-        "builtin":    "support",
+        "atom":       "constant",
+        "keyword":    "keyword",
+        "builtin":    "keyword",
         "operator":   "operator",
+        "delimiter":    "text",
+        "dot":    "text",
         "identifier": "identifier",
         "property":   "constant",
-        "number":     "numeric",
+        "number":     "string.numeric",
         "string":     "string",
-        "regex":      "regexp"
+        "regex":      "string.regexp"
     },
 
     
@@ -113,11 +116,21 @@ var js_grammar = {
             "type" : "simple",
             "tokens" : [
                 "\\", "+", "-", "*", "/", "%", "&", "|", "^", "~", "<", ">" , "!",
-                "==", "!=", "<=", ">=", "<>", ">>", "<<",
+                "||", "&&", "==", "!=", "<=", ">=", "<>", ">>", "<<",
                 "===", "!==", "<<<", ">>>" 
             ]
         },
         
+        // delimiters
+        "delimiter" : {
+            "type" : "simple",
+            "tokens" : [
+                "(", ")", "[", "]", "{", "}", ",", "=", ";", "?", ":",
+                "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "++", "--",
+                ">>=", "<<="
+            ]
+        },
+            
         // atoms
         "atom" : {
             "type" : "simple",
@@ -188,6 +201,7 @@ var js_grammar = {
         "regex",
         "keyword",
         "operator",
+        "delimiter",
         "atom",
         "builtinOrIdentifierWithProperties"
     ]

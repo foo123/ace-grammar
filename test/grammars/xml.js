@@ -16,21 +16,20 @@ var xml_grammar = {
             "error":                "error",
             "commentBlock":         "comment",
             "metaBlock":            "meta",
-            "atom":                 "atom",
-            "cdataBlock":           "atom",
-            "startTag":             "tag",
-            "endTag":               "tag",
-            "autocloseTag":         "tag",
-            "closeTag":             "tag",
-            "attribute":            "attribute",
+            "atom":                 "string",
+            "cdataBlock":           "string",
+            "startTag":             "keyword",
+            "endTag":               "keyword",
+            "autocloseTag":         "keyword",
+            "closeTag":             "keyword",
+            "attribute":            "variable",
             "assignment":           "operator",
             "number":               "numeric",
             "number2":              "numeric",
-            "string":               "string"
+            "string":               "string",
+            "assignment": "text"
         },
 
-        "electricChars" : null,
-        
         //
         // Lexical model
         "Lex" : {

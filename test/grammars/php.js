@@ -8,9 +8,9 @@ var php_grammar = {
         // else matched one by one, 
         // this is usefull for speed fine-tuning the parser
         "RegExpGroups" : {
-            "atom" : true,
-            "keyword" : true,
-            "builtin" : true,
+            "atom" : "\\b",
+            "keyword" : "\\b",
+            "builtin" : "\\b",
             "operator" : true,
             "delimiter" : true
         },
@@ -22,10 +22,11 @@ var php_grammar = {
             "error":       "error",
             "meta":        "meta",
             "comment":     "comment",
-            "atom":        "atom",
-            "keyword":     "storage",
-            "builtin":     "support",
+            "atom":        "constant",
+            "keyword":     "keyword",
+            "builtin":     "keyword",
             "operator":    "operator",
+            "delimiter":    "text",
             "identifier":  "identifier",
             "variable":    "variable",
             "number":      "numeric",
@@ -105,7 +106,7 @@ var php_grammar = {
                 "type" : "simple",
                 "tokens" : [
                     "\\", "+", "-", "*", "/", "%", "&", "|", "^", "~", "<", ">" , "!",
-                    "==", "!=", "<=", ">=", "<>", ">>", "<<",
+                    "||", "&&", "==", "!=", "<=", ">=", "<>", ">>", "<<",
                     "===", "!==", "and", "or"
                 ]
             },
@@ -114,7 +115,7 @@ var php_grammar = {
             "delimiter" : {
                 "type" : "simple",
                 "tokens" : [
-                    "(", ")", "[", "]", "{", "}", ",", "=", ";",
+                    "(", ")", "[", "]", "{", "}", ",", "=", ";", "?", ":",
                     "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "++", "--", "->", 
                     ">>=", "<<="
                 ]
@@ -140,8 +141,8 @@ var php_grammar = {
                     "foreach", "function", "global", "goto", "if", "implements", "interface", "instanceof", 
                     "namespace", "new", "or", "private", "protected", "public", "static", "switch", "throw", 
                     "trait", "try", "use", "var", "while", "xor", "die", "echo", "empty", "exit", "eval", 
-                    "include", "include_once", "isset", "list", "require", "require_once", "return", "print", 
-                    "unset", "__halt_compiler", "self", "static", "parent" 
+                    "include", "include_once", "list", "require", "require_once", "return", "print", 
+                    "__halt_compiler", "self", "static", "parent" 
                 ]
             },
                                   

@@ -184,8 +184,8 @@
             var 
                 LOCALS = { 
                     // default return code, when no match or empty found
-                    // 'null' should be used in most cases
-                    DEFAULT: DEFAULT || "invisible"
+                    // 'text' should be used in most cases
+                    DEFAULT: DEFAULT || DEFAULTTYPE
                 },
                 parser, aceMode
             ;

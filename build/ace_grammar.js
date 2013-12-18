@@ -15,6 +15,8 @@
     //
     // parser types
     var    
+        DEFAULTTYPE = "invisible",
+        
         //
         // javascript variable types
         T_NUM = 2,
@@ -1324,7 +1326,7 @@
                                     tokenID,
                                     getBlockMatcher( tokenID, tok.tokens.slice(), RegExpID, parsedRegexes, parsedMatchers ), 
                                     type, 
-                                    Style[ tokenID ] || "invisible",
+                                    Style[ tokenID ] || DEFAULTTYPE,
                                     tok.multiline
                                 );
                     }
@@ -1335,7 +1337,7 @@
                                     tokenID,
                                     getBlockMatcher( tokenID, tok.tokens.slice(), RegExpID, parsedRegexes, parsedMatchers ), 
                                     type, 
-                                    Style[ tokenID ] || "invisible",
+                                    Style[ tokenID ] || DEFAULTTYPE,
                                     tok.escape || "\\",
                                     tok.multiline || false
                                 );
@@ -1347,7 +1349,7 @@
                                     tokenID,
                                     getCompositeMatcher( tokenID, tok.tokens.slice(), RegExpID, RegExpGroups[ tokenID ], parsedRegexes, parsedMatchers ), 
                                     type, 
-                                    Style[ tokenID ] || "invisible"
+                                    Style[ tokenID ] || DEFAULTTYPE
                                 );
                     }
                     
@@ -1433,7 +1435,7 @@
         Stream = Extends(Object, {
             
             constructor: function( line ) {
-                this.string = line;
+                this.string = new String(line);
                 this.pos = this.start = 0;
             },
             
@@ -1496,33 +1498,34 @@
                     
                     var DEFAULT = LOCALS.DEFAULT,
                         Style = grammar.Style || {},
-                        ERROR = Style.error || null,
+                        ERROR = Style.error || "error",
                         tokens = grammar.Parser || [],
-                        numTokens = tokens.length
+                        numTokens = tokens.length,
+                        state = { stack: [], inBlock: null, current: null, currentToken: T_DEFAULT }
                     ;
                     
-                    return function(line, state) {
+                    return function(line, stateAce) {
                 
                         // ACE Tokenizer compatible
-                        var i, token, style, stack, aceTokens = [], stream = new Stream( line );
+                        var i, rewind, token, style, stack, aceTokens = [], stream = new Stream( line );
                         
-                        //console.log(state);
-                        
-                        state = state || {};
-                        stack = state.stack = state.stack || [];
+                        stack = state.stack;
                         
                         while ( !stream.eol() )
                         {
+                            rewind = false;
+                            
                             if ( stream.eatSpace() ) 
                             {
                                 state.current = null;
                                 state.currentToken = T_DEFAULT;
+                                aceTokens.push( { type: DEFAULT, value: stream.current() } );
                                 continue;
                             }
                             
                             //stackTrace(stack);
                             
-                            while ( stack.length )
+                            while ( stack.length && !stream.eol() )
                             {
                                 token = stack.pop();
                                 
@@ -1550,6 +1553,8 @@
                                         state.current = null;
                                         state.currentToken = T_ERROR;
                                         aceTokens.push( { type: ERROR, value: stream.current() } );
+                                        rewind = true;
+                                        break;
                                     }
                                     // optional
                                     else
@@ -1562,55 +1567,71 @@
                                 {
                                     state.current = token.tokenName;
                                     aceTokens.push( { type: style, value: stream.current() } );
+                                    rewind = true;
+                                    break;
                                 }
                             }
                             
-                            for (i=0; i<numTokens; i++)
+                            if ( rewind ) continue;
+                            
+                            if ( !stream.eol() )
                             {
-                                token = tokens[i];
-                                style = token.tokenize(stream, state, LOCALS);
-                                
-                                // match failed
-                                if ( false === style )
+                                for (i=0; i<numTokens; i++)
                                 {
-                                    // error
-                                    if ( token.ERROR || token.isRequired )
+                                    token = tokens[i];
+                                    style = token.tokenize(stream, state, LOCALS);
+                                    
+                                    // match failed
+                                    if ( false === style )
                                     {
-                                        // empty the stack
-                                        state.stack.length = 0;
-                                        // skip this character
-                                        stream.next();
-                                        //console.log(["ERROR", stream.current()]);
-                                        // generate error
-                                        state.current = null;
-                                        state.currentToken = T_ERROR;
-                                        aceTokens.push( { type: ERROR, value: stream.current() } );
+                                        // error
+                                        if ( token.ERROR || token.isRequired )
+                                        {
+                                            // empty the stack
+                                            state.stack.length = 0;
+                                            // skip this character
+                                            stream.next();
+                                            //console.log(["ERROR", stream.current()]);
+                                            // generate error
+                                            state.current = null;
+                                            state.currentToken = T_ERROR;
+                                            aceTokens.push( { type: ERROR, value: stream.current() } );
+                                            rewind = true;
+                                            break;
+                                        }
+                                        // optional
+                                        else
+                                        {
+                                            continue;
+                                        }
                                     }
-                                    // optional
+                                    // found token
                                     else
                                     {
-                                        continue;
+                                        state.current = token.tokenName;
+                                        aceTokens.push( { type: style, value: stream.current() } );
+                                        rewind = true;
+                                        break;
                                     }
-                                }
-                                // found token
-                                else
-                                {
-                                    state.current = token.tokenName;
-                                    aceTokens.push( { type: style, value: stream.current() } );
                                 }
                             }
                             
-                            // unknown, bypass
-                            stream.next();
-                            state.current = null;
-                            state.currentToken = T_DEFAULT;
-                            aceTokens.push( { type: DEFAULT, value: stream.current() } );
+                            if ( rewind ) continue;
+                            
+                            if ( !stream.eol() )
+                            {
+                                // unknown, bypass
+                                stream.next();
+                                state.current = null;
+                                state.currentToken = T_DEFAULT;
+                                aceTokens.push( { type: DEFAULT, value: stream.current() } );
+                            }
                         }
                         
                         //console.log(aceTokens);
                         
                         // ACE Tokenizer compatible
-                        return { state: state, tokens: aceTokens };
+                        return { state: stateAce, tokens: aceTokens };
                     }
                 }()
             }
@@ -1803,8 +1824,8 @@
             var 
                 LOCALS = { 
                     // default return code, when no match or empty found
-                    // 'null' should be used in most cases
-                    DEFAULT: DEFAULT || "invisible"
+                    // 'text' should be used in most cases
+                    DEFAULT: DEFAULT || DEFAULTTYPE
                 },
                 parser, aceMode
             ;
