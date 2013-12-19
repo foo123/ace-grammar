@@ -1,16 +1,31 @@
 /**
 *
 *   AceGrammar
-*   @version: 0.2
+*   @version: 0.2.1
 *   Transform a grammar specification in JSON format,
 *   into an ACE syntax-highlight parser mode
 *
 *   https://github.com/foo123/ace-grammar
 *
 **/
-(function(undef){
+!function (root, moduleName, moduleDefinition) {
+
+    //
+    // export the module
     
-    var VERSION = "0.2";
+    // node, CommonJS, etc..
+    if ( 'object' == typeof(module) && module.exports ) module.exports = moduleDefinition();
+    
+    // AMD, etc..
+    else if ( 'function' == typeof(define) && define.amd ) define( moduleDefinition );
+    
+    // browser, etc..
+    else root[ moduleName ] = moduleDefinition();
+
+
+}(this, 'AceGrammar', function( undef ) {
+    
+    var VERSION = "0.2.1";
         
     //
     // parser types
@@ -1679,11 +1694,5 @@
     };
     
     // export it
-    if ('undefined' != typeof (module) && module.exports)  module.exports = self;
-    
-    else if ('undefined' != typeof (exports)) exports = self;
-    
-    else this.AceGrammar = self;
-
-    
-}).call(this);
+    return self;
+});
