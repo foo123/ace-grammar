@@ -9623,10 +9623,15 @@ var BackgroundTokenizer = function(tokenizer, editor) {
     this.$tokenizeRow = function(row) {
         var line = this.doc.getLine(row);
         var state = this.states[row - 1];
-
+        //var state1 = this.states[row];
+        //console.log(["line:"+(row+1), line]);
+        //console.log(["state:"+(row), (state) ? state.inBlock : state]);
+        //console.log(["state:"+(row+1), (state1) ? state1.inBlock : state1]);
         var data = this.tokenizer.getLineTokens(line, state, row);
-
+        //console.log(state1+"");
+        //console.log(data.state+"");
         if (this.states[row] + "" !== data.state + "") {
+            //console.log("state changed");
             this.states[row] = data.state;
             this.lines[row + 1] = null;
             if (this.currentLine > row + 1)

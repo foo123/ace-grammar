@@ -4,8 +4,6 @@
         
         <meta charset="utf-8">
         
-        <!-- required -->
-        <script src="../build/regexanalyzer.min.js"></script>
         <script src="ace/ace.js" type="text/javascript" data-ace-base="ace" charset="utf-8"></script>
         <script src="../build/ace_grammar.js"></script>
         <script src="grammars/xml.js"></script>
@@ -57,11 +55,8 @@
         <script>
         // <![CDATA[
         
-        // requires the RegExAnalyzer
-        AceGrammar.init( RegExAnalyzer );
-        
         // 2. parse the grammar into an ACE syntax-highlight mode
-        var xml_mode = AceGrammar.getMode( xml_grammar, "text" );
+        var xml_mode = AceGrammar.getMode( xml_grammar );
         
         // 3. use it with ACE
         var editor = ace.edit("editor");

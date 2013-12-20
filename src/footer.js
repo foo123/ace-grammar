@@ -1,4 +1,4 @@
     
     // export it
-    return self;
+    exports.AceGrammar = self;
 });

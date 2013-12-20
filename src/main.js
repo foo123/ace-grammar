@@ -99,14 +99,23 @@
     *
     * ###AceGrammar Methods
     *
+    * __For node with dependencies:__
+    *
+    * ```javascript
+    * AceGrammar = require('build/ace_grammar.js').AceGrammar;
+    * ```
+    *
+    * __For browser with dependencies:__
+    *
+    * ```html
+    * <script src="../build/ace_grammar.js"></script>
+    * <script> // AceGrammar.getMode(..) , etc.. </script>
+    * ```
+    *
     [/DOC_MARKDOWN]**/
     var self = {
         
         VERSION : VERSION,
-        
-        init : function(RegExAnalyzer) {
-            RegexAnalyzer = RegExAnalyzer;
-        },
         
         // extend a grammar using another base grammar
         /**[DOC_MARKDOWN]
@@ -146,12 +155,12 @@
         * ```
         *
         * This is the main method which transforms a JSON grammar into an ACE syntax-highlight parser.
-        * DEFAULT is the default return value ("invisible" by default) for things that are skipped or not styled
+        * DEFAULT is the default return value ("text" by default) for things that are skipped or not styled
         * In general there is no need to set this value, unlees you need to return something else
         [/DOC_MARKDOWN]**/
         getMode : function(grammar, DEFAULT) {
             
-            DEFAULTTYPE = "invisible";
+            DEFAULTTYPE = "text";
             
             // build the grammar
             grammar = parse( grammar );

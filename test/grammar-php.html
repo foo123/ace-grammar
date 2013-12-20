@@ -4,8 +4,6 @@
         
         <meta charset="utf-8">
         
-        <!-- required -->
-        <script src="../build/regexanalyzer.min.js"></script>
         <script src="ace/ace.js" type="text/javascript" data-ace-base="ace" charset="utf-8"></script>
         <script src="../build/ace_grammar.js"></script>
         <script src="grammars/php.js"></script>
@@ -67,9 +65,6 @@ function a_function( &$v1, $v2 )
 
         <script>
         // <![CDATA[
-        
-        // requires the RegExAnalyzer
-        AceGrammar.init( RegExAnalyzer );
         
         // 2. parse the grammar into an ACE syntax-highlight mode
         var php_mode = AceGrammar.getMode( php_grammar );

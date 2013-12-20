@@ -8,21 +8,38 @@
 *   https://github.com/foo123/ace-grammar
 *
 **/
-!function (root, moduleName, moduleDefinition) {
+!function ( moduleFactory ) {
 
     //
     // export the module
     
     // node, CommonJS, etc..
-    if ( 'object' == typeof(module) && module.exports ) module.exports = moduleDefinition();
+    if ( 'object' == typeof( module ) && module.exports ) 
+    {
+        moduleFactory( module.exports );
+    }
     
     // AMD, etc..
-    else if ( 'function' == typeof(define) && define.amd ) define( moduleDefinition );
+    else if ( 'function' == typeof( define ) && define.amd ) 
+    {
+        define( ['exports'], function( exports ) {
+            moduleFactory( exports );
+        });
+    }
     
     // browser, etc..
-    else root[ moduleName ] = moduleDefinition();
+    else 
+    {
+        moduleFactory( this );
+    }
 
 
-}(this, 'AceGrammar', function( undef ) {
+}.call( this, function( exports, undef ) {
+    
+    if ( exports.AceGrammar ) return;
+    
+    // dependencies on Classy and RegExAnalyzer
+    var Class = exports.Classy.Class;
+    var RegexAnalyzer = exports.RegExAnalyzer;
     
     var VERSION = "@@VERSION@@";

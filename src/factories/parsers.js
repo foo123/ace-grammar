@@ -2,7 +2,7 @@
     //
     // parser factories
     var
-        Parser = Extends(Object, {
+        Parser = Class({
             
             constructor: function(grammar, LOCALS) {
                 this.LOCALS = LOCALS;
@@ -14,80 +14,67 @@
             Style: null,
             tokens: null,
             
-            resetState: function( state ) {
-                state = state || {};
-                state.stack = []; 
-                state.inBlock = null; 
-                state.current = null; 
-                state.currentToken = T_DEFAULT;
-                state.init = null;
-                return state;
-            },
-            
-            copyState: function( state ) {
-                var copy = {};
-                for (var k in state)
-                {
-                    if ( T_ARRAY == get_type(state[k]) )
-                        copy[k] = state[k].slice();
-                    else
-                        copy[k] = state[k];
-                }
-                return copy;
-            },
-            
             // ACE Tokenizer compatible
             getLineTokens: function(line, state, row) {
                 
-                var i, numTokens = this.tokens.length, rewind, token, style, stream, stack, tokens, startBlock = 0;
+                var i, rewind, 
+                    tokenizer, tokens, currentToken, type, numTokens = this.tokens.length, 
+                    stream, stack
+                ;
                 
                 var ERROR = this.Style.error || "error";
                 var DEFAULT = this.LOCALS.DEFAULT;
                 
-                if ( !state ) state = this.resetState( state );
-                state = this.copyState( state );
-                stack = state.stack;
-                stream = new Stream( line );
+                stream = new StringStream( line );
                 tokens = []; 
-                
-                if ( !state.inBlock )
-                {
-                    startBlock = 1;
-                }
+                state = state || new StateContext( );
+                state = state.clone();
+                state.id = 1+row;
+                stack = state.stack;
+                currentToken = { type: null, value: "" };
+                type = null;
                 
                 while ( !stream.eol() )
                 {
                     rewind = false;
                     
+                    if ( type && type !== currentToken.type )
+                    {
+                        if ( currentToken.type ) tokens.push( currentToken );
+                        currentToken = { type: type, value: stream.current() };
+                        stream.shift();
+                    }
+                    else if ( currentToken.type )
+                    {
+                        currentToken.value += stream.current();
+                        stream.shift();
+                    }
+                    
                     if ( stream.eatSpace() ) 
                     {
-                        state.current = null;
                         state.currentToken = T_DEFAULT;
-                        tokens.push( { type: DEFAULT, value: stream.current() } );
-                        stream.shift();
+                        type = DEFAULT;
                         continue;
                     }
                     
                     while ( stack.length && !stream.eol() )
                     {
-                        token = stack.pop();
-                        style = token.tokenize(stream, state, this.LOCALS);
+                        tokenizer = stack.pop();
+                        type = tokenizer.tokenize(stream, state, this.LOCALS);
                         
                         // match failed
-                        if ( false === style )
+                        if ( false === type )
                         {
                             // error
-                            if ( token.ERROR || token.isRequired )
+                            if ( tokenizer.ERROR || tokenizer.isRequired )
                             {
                                 // empty the stack
-                                state.stack.length = 0;
+                                stack.length = 0;
                                 // skip this character
                                 stream.next();
                                 // generate error
-                                state.current = null;
                                 state.currentToken = T_ERROR;
-                                tokens.push( { type: ERROR, value: stream.current() } );
-                                stream.shift();
+                                type = ERROR;
                                 rewind = true;
                                 break;
                             }
@@ -100,9 +87,6 @@
                         // found token
                         else
                         {
-                            state.current = token.tokenName;
-                            tokens.push( { type: style, value: stream.current() } );
-                            stream.shift();
                             rewind = true;
                             break;
                         }
@@ -114,24 +98,22 @@
                     {
                         for (i=0; i<numTokens; i++)
                         {
-                            token = this.tokens[i];
-                            style = token.tokenize(stream, state, this.LOCALS);
+                            tokenizer = this.tokens[i];
+                            type = tokenizer.tokenize(stream, state, this.LOCALS);
                             
                             // match failed
-                            if ( false === style )
+                            if ( false === type )
                             {
                                 // error
-                                if ( token.ERROR || token.isRequired )
+                                if ( tokenizer.ERROR || tokenizer.isRequired )
                                 {
                                     // empty the stack
-                                    state.stack.length = 0;
+                                    stack.length = 0;
                                     // skip this character
                                     stream.next();
                                     // generate error
-                                    state.current = null;
                                     state.currentToken = T_ERROR;
-                                    tokens.push( { type: ERROR, value: stream.current() } );
-                                    stream.shift();
+                                    type = ERROR;
                                     rewind = true;
                                     break;
                                 }
@@ -144,9 +126,6 @@
                             // found token
                             else
                             {
-                                state.current = token.tokenName;
-                                tokens.push( { type: style, value: stream.current() } );
-                                stream.shift();
                                 rewind = true;
                                 break;
                             }
@@ -159,24 +138,23 @@
                     {
                         // unknown, bypass
                         stream.next();
-                        state.current = null;
                         state.currentToken = T_DEFAULT;
-                        tokens.push( { type: DEFAULT, value: stream.current() } );
-                        stream.shift();
+                        type = DEFAULT;
                     }
                 }
                 
-                if ( startBlock && state.inBlock )
+                if ( type && type !== currentToken.type )
                 {
-                    state.startBlock = 1;
+                    if ( currentToken.type ) tokens.push( currentToken );
+                    tokens.push( { type: type, value: stream.current() } );
                 }
-                else
+                else if ( currentToken.type )
                 {
-                    state.startBlock = 0;
+                    currentToken.value += stream.current();
+                    tokens.push( currentToken );
                 }
-                
+                currentToken = { type: null, value: "" };
                 //console.log(tokens);
-                //console.log(state);
                 
                 // ACE Tokenizer compatible
                 return { state: state, tokens: tokens };
