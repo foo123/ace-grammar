@@ -58,7 +58,7 @@ var css_grammar = {
             
             // comments
             "comment" : {
-                "type" : "block",
+                "type" : "comment",
                 "tokens" : [
                     // block comments
                     // start, end     delims

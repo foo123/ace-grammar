@@ -6,16 +6,20 @@
             
             constructor: function(grammar, LOCALS) {
                 this.LOC = LOCALS;
+                this.Grammar = grammar;
                 this.Style = grammar.Style || {};
+                this.Comments = grammar.Comments || {};
+                this.tokens = grammar.Parser || [];
                 this.DEF = this.LOC.DEFAULT;
                 this.ERR = this.Style.error || this.LOC.ERROR;
-                this.tokens = grammar.Parser || [];
             },
             
             LOC: null,
             ERR: null,
             DEF: null,
+            Grammar: null,
             Style: null,
+            Comments: null,
             tokens: null,
             
             // ACE Tokenizer compatible
@@ -184,15 +188,8 @@
                 // the custom Parser/Tokenizer
                 getTokenizer: function() { return parser; },
                 
-                /*
-                *   Maybe needed in later versions..
-                */
-                
-                HighlightRules: null,
-                $behaviour: null, //new Behaviour(),
-
-                lineCommentStart: "",
-                blockComment: "",
+                lineCommentStart: (parser.Comments.lineCommentStart) ? parser.Comments.lineCommentStart[0] : null,
+                blockComment: (parser.Comments.blockCommentStart && parser.Comments.blockCommentEnd) ? { start: parser.Comments.blockCommentStart[0], end: parser.Comments.blockCommentEnd[0] } : null,
 
                 toggleCommentLines: function(state, session, startRow, endRow) { return false; },
 
@@ -206,19 +203,26 @@
 
                 $getIndent: function(line) { return parser.$getIndent(line); },
 
+                getKeywords: function( append ) { return parser.getKeywords(append); },
+                
+                $createKeywordList: function() { return parser.$createKeywordList(); },
+
+                getCompletions: function(state, session, pos, prefix) { return parser.getCompletions(state, session, pos, prefix); },
+                
+                /*
+                *   Maybe needed in later versions..
+                */
+                
+                HighlightRules: null,
+                $behaviour: null, //new Behaviour(),
+
                 createWorker: function(session) { return null; },
 
                 createModeDelegates: function (mapping) { },
 
                 $delegator: function(method, args, defaultHandler) { },
 
-                transformAction: function(state, action, editor, session, param) { },
-                
-                getKeywords: function( append ) { return parser.getKeywords(append); },
-                
-                $createKeywordList: function() { return parser.$createKeywordList(); },
-
-                getCompletions: function(state, session, pos, prefix) { return parser.getCompletions(state, session, pos, prefix); }
+                transformAction: function(state, action, editor, session, param) { }
                 
             };
         }

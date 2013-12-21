@@ -38,7 +38,7 @@ var python_grammar = {
         
             // comments
             "comment" : {
-                "type" : "block",
+                "type" : "comment",
                 "tokens" : [
                     // null delimiter, matches end-of-line
                     ["#",  null]

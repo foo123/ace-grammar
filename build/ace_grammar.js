@@ -1,7 +1,7 @@
 /**
 *
 *   AceGrammar
-*   @version: 0.4
+*   @version: 0.4.1
 *   Transform a grammar specification in JSON format,
 *   into an ACE syntax-highlight parser mode
 *
@@ -62,7 +62,7 @@
     function( Classy, RegexAnalyzer, undef ) {
     
     var Class = Classy.Class;
-    var VERSION = "0.4";
+    var VERSION = "0.4.1";
         
     //
     // parser types
@@ -1246,7 +1246,36 @@
             }
         }),
                 
-        getTokenizer = function(tokenID, RegExpID, RegExpGroups, Lex, Syntax, Style, parsedRegexes, parsedMatchers, parsedTokens) {
+        getComments = function(tok, comments) {
+            // build start/end mappings
+            var tmp = make_array_2(tok.tokens.slice()); // array of arrays
+            var start, end, lead;
+            for (i=0, l=tmp.length; i<l; i++)
+            {
+                start = tmp[i][0];
+                end = (tmp[i].length>1) ? tmp[i][1] : tmp[i][0];
+                lead = (tmp[i].length>2) ? tmp[i][2] : "";
+                
+                if ( null === end )
+                {
+                    // line comment
+                    comments.lineCommentStart = comments.lineCommentStart || [];
+                    comments.lineCommentStart.push( start );
+                }
+                else
+                {
+                    // block comment
+                    comments.blockCommentStart = comments.blockCommentStart || [];
+                    comments.blockCommentEnd = comments.blockCommentEnd || [];
+                    comments.blockCommentLead = comments.blockCommentLead || [];
+                    comments.blockCommentStart.push( start );
+                    comments.blockCommentEnd.push( end );
+                    comments.blockCommentLead.push( lead );
+                }
+            }
+        },
+        
+        getTokenizer = function(tokenID, RegExpID, RegExpGroups, Lex, Syntax, Style, parsedRegexes, parsedMatchers, parsedTokens, comments) {
             
             var tok, token = null, type, matchType, tokens, action;
             
@@ -1262,6 +1291,8 @@
                     
                     if ( T_BLOCK == type || T_COMMENT == type )
                     {
+                        if ( T_COMMENT == type ) getComments(tok, comments);
+                            
                         token = new BlockTokenizer( 
                                     tokenID,
                                     getBlockMatcher( tokenID, tok.tokens.slice(), RegExpID, parsedRegexes, parsedMatchers ), 
@@ -1299,7 +1330,7 @@
                         tokens = make_array( tok.tokens ).slice();
                         
                         for (var i=0, l=tokens.length; i<l; i++)
-                            tokens[i] = getTokenizer(tokens[i], RegExpID, RegExpGroups, Lex, Syntax, Style, parsedRegexes, parsedMatchers, parsedTokens);
+                            tokens[i] = getTokenizer(tokens[i], RegExpID, RegExpGroups, Lex, Syntax, Style, parsedRegexes, parsedMatchers, parsedTokens, comments);
                         
                         if (T_ZEROORONE == matchType) 
                             token = new ZeroOrOneTokens(tokenID, tokens);
@@ -1328,7 +1359,7 @@
                             var ngram = token[i];
                             
                             for (var j=0, l2=ngram.length; j<l2; j++)
-                                ngram[j] = getTokenizer( ngram[j], RegExpID, RegExpGroups, Lex, Syntax, Style, parsedRegexes, parsedMatchers, parsedTokens );
+                                ngram[j] = getTokenizer( ngram[j], RegExpID, RegExpGroups, Lex, Syntax, Style, parsedRegexes, parsedMatchers, parsedTokens, comments );
                             
                             // get a tokenizer for whole ngram
                             token[i] = new NGramTokenizer( tokenID + '_NGRAM_' + i, ngram );
@@ -1349,16 +1380,20 @@
             
             constructor: function(grammar, LOCALS) {
                 this.LOC = LOCALS;
+                this.Grammar = grammar;
                 this.Style = grammar.Style || {};
+                this.Comments = grammar.Comments || {};
+                this.tokens = grammar.Parser || [];
                 this.DEF = this.LOC.DEFAULT;
                 this.ERR = this.Style.error || this.LOC.ERROR;
-                this.tokens = grammar.Parser || [];
             },
             
             LOC: null,
             ERR: null,
             DEF: null,
+            Grammar: null,
             Style: null,
+            Comments: null,
             tokens: null,
             
             // ACE Tokenizer compatible
@@ -1527,15 +1562,8 @@
                 // the custom Parser/Tokenizer
                 getTokenizer: function() { return parser; },
                 
-                /*
-                *   Maybe needed in later versions..
-                */
-                
-                HighlightRules: null,
-                $behaviour: null, //new Behaviour(),
-
-                lineCommentStart: "",
-                blockComment: "",
+                lineCommentStart: (parser.Comments.lineCommentStart) ? parser.Comments.lineCommentStart[0] : null,
+                blockComment: (parser.Comments.blockCommentStart && parser.Comments.blockCommentEnd) ? { start: parser.Comments.blockCommentStart[0], end: parser.Comments.blockCommentEnd[0] } : null,
 
                 toggleCommentLines: function(state, session, startRow, endRow) { return false; },
 
@@ -1549,19 +1577,26 @@
 
                 $getIndent: function(line) { return parser.$getIndent(line); },
 
+                getKeywords: function( append ) { return parser.getKeywords(append); },
+                
+                $createKeywordList: function() { return parser.$createKeywordList(); },
+
+                getCompletions: function(state, session, pos, prefix) { return parser.getCompletions(state, session, pos, prefix); },
+                
+                /*
+                *   Maybe needed in later versions..
+                */
+                
+                HighlightRules: null,
+                $behaviour: null, //new Behaviour(),
+
                 createWorker: function(session) { return null; },
 
                 createModeDelegates: function (mapping) { },
 
                 $delegator: function(method, args, defaultHandler) { },
 
-                transformAction: function(state, action, editor, session, param) { },
-                
-                getKeywords: function( append ) { return parser.getKeywords(append); },
-                
-                $createKeywordList: function() { return parser.$createKeywordList(); },
-
-                getCompletions: function(state, session, pos, prefix) { return parser.getCompletions(state, session, pos, prefix); }
+                transformAction: function(state, action, editor, session, param) { }
                 
             };
         }
@@ -1603,7 +1638,7 @@
         parse = function(grammar) {
             var RegExpID, RegExpGroups, tokens, numTokens, _tokens, 
                 Style, Lex, Syntax, t, tokenID, token, tok,
-                parsedRegexes = {}, parsedMatchers = {}, parsedTokens = {};
+                parsedRegexes = {}, parsedMatchers = {}, parsedTokens = {}, comments = {};
             
             // grammar is parsed, return it
             // avoid reparsing already parsed grammars
@@ -1639,7 +1674,7 @@
             {
                 tokenID = _tokens[ t ];
                 
-                token = getTokenizer( tokenID, RegExpID, RegExpGroups, Lex, Syntax, Style, parsedRegexes, parsedMatchers, parsedTokens ) || null;
+                token = getTokenizer( tokenID, RegExpID, RegExpGroups, Lex, Syntax, Style, parsedRegexes, parsedMatchers, parsedTokens, comments ) || null;
                 
                 if ( token )
                 {
@@ -1653,6 +1688,7 @@
             
             grammar.Parser = tokens;
             grammar.Style = Style;
+            grammar.Comments = comments;
             
             // this grammar is parsed
             grammar.__parsed = true;
