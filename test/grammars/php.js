@@ -19,7 +19,7 @@ var php_grammar = {
         // Style model
         "Style" : {
             // lang token type  -> ACE (style) tag
-            "error":       "error",
+            "error":       "invalid",
             "meta":        "meta",
             "comment":     "comment",
             "atom":        "constant",

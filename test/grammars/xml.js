@@ -13,7 +13,7 @@ var xml_grammar = {
         // Style model
         "Style" : {
             // lang token type  -> ACE (style) tag
-            "error":                "error",
+            "error":                "invalid",
             "commentBlock":         "comment",
             "metaBlock":            "meta",
             "atom":                 "string",

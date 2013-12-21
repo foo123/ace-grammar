@@ -18,7 +18,7 @@ var python_grammar = {
         // Style model
         "Style" : {
             // lang token type  -> ACE (style) tag
-            "error":        "error",
+            "error":        "invalid",
             "decorator":    "constant.support",
             "comment":      "comment",
             "keyword":      "keyword",

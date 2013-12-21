@@ -2,15 +2,19 @@
     //
     // parser factories
     var
-        Parser = Class({
+        AceParser = Class({
             
             constructor: function(grammar, LOCALS) {
-                this.LOCALS = LOCALS;
+                this.LOC = LOCALS;
                 this.Style = grammar.Style || {};
+                this.DEF = this.LOC.DEFAULT;
+                this.ERR = this.Style.error || defaultGrammar.Style.error;
                 this.tokens = grammar.Parser || [];
             },
             
-            LOCALS: null,
+            LOC: null,
+            ERR: null,
+            DEF: null,
             Style: null,
             tokens: null,
             
@@ -19,15 +23,15 @@
                 
                 var i, rewind, 
                     tokenizer, tokens, currentToken, type, numTokens = this.tokens.length, 
-                    stream, stack
+                    stream, stack,
+                    LOC = this.LOC,
+                    DEFAULT = this.DEF,
+                    ERROR = this.ERR
                 ;
-                
-                var ERROR = this.Style.error || "error";
-                var DEFAULT = this.LOCALS.DEFAULT;
                 
                 stream = new StringStream( line );
                 tokens = []; 
-                state = state || new StateContext( );
+                state = state || new ParserState( );
                 state = state.clone();
                 state.id = 1+row;
                 stack = state.stack;
@@ -41,16 +45,16 @@
                     if ( type && type !== currentToken.type )
                     {
                         if ( currentToken.type ) tokens.push( currentToken );
-                        currentToken = { type: type, value: stream.current() };
-                        stream.shift();
+                        currentToken = { type: type, value: stream.cur() };
+                        stream.sft();
                     }
                     else if ( currentToken.type )
                     {
-                        currentToken.value += stream.current();
-                        stream.shift();
+                        currentToken.value += stream.cur();
+                        stream.sft();
                     }
                     
-                    if ( stream.eatSpace() ) 
+                    if ( stream.space() ) 
                     {
                         state.currentToken = T_DEFAULT;
                         type = DEFAULT;
@@ -60,7 +64,7 @@
                     while ( stack.length && !stream.eol() )
                     {
                         tokenizer = stack.pop();
-                        type = tokenizer.tokenize(stream, state, this.LOCALS);
+                        type = tokenizer.get(stream, state, LOC);
                         
                         // match failed
                         if ( false === type )
@@ -71,7 +75,7 @@
                                 // empty the stack
                                 stack.length = 0;
                                 // skip this character
-                                stream.next();
+                                stream.nxt();
                                 // generate error
                                 state.currentToken = T_ERROR;
                                 type = ERROR;
@@ -93,64 +97,60 @@
                     }
                     
                     if ( rewind ) continue;
+                    if ( stream.eol() ) break;
                     
-                    if ( !stream.eol() )
+                    for (i=0; i<numTokens; i++)
                     {
-                        for (i=0; i<numTokens; i++)
+                        tokenizer = this.tokens[i];
+                        type = tokenizer.get(stream, state, LOC);
+                        
+                        // match failed
+                        if ( false === type )
                         {
-                            tokenizer = this.tokens[i];
-                            type = tokenizer.tokenize(stream, state, this.LOCALS);
-                            
-                            // match failed
-                            if ( false === type )
+                            // error
+                            if ( tokenizer.ERROR || tokenizer.isRequired )
                             {
-                                // error
-                                if ( tokenizer.ERROR || tokenizer.isRequired )
-                                {
-                                    // empty the stack
-                                    stack.length = 0;
-                                    // skip this character
-                                    stream.next();
-                                    // generate error
-                                    state.currentToken = T_ERROR;
-                                    type = ERROR;
-                                    rewind = true;
-                                    break;
-                                }
-                                // optional
-                                else
-                                {
-                                    continue;
-                                }
-                            }
-                            // found token
-                            else
-                            {
+                                // empty the stack
+                                stack.length = 0;
+                                // skip this character
+                                stream.nxt();
+                                // generate error
+                                state.currentToken = T_ERROR;
+                                type = ERROR;
                                 rewind = true;
                                 break;
                             }
+                            // optional
+                            else
+                            {
+                                continue;
+                            }
+                        }
+                        // found token
+                        else
+                        {
+                            rewind = true;
+                            break;
                         }
                     }
                     
                     if ( rewind ) continue;
+                    if ( stream.eol() ) break;
                     
-                    if ( !stream.eol() )
-                    {
-                        // unknown, bypass
-                        stream.next();
-                        state.currentToken = T_DEFAULT;
-                        type = DEFAULT;
-                    }
+                    // unknown, bypass
+                    stream.nxt();
+                    state.currentToken = T_DEFAULT;
+                    type = DEFAULT;
                 }
                 
                 if ( type && type !== currentToken.type )
                 {
                     if ( currentToken.type ) tokens.push( currentToken );
-                    tokens.push( { type: type, value: stream.current() } );
+                    tokens.push( { type: type, value: stream.cur() } );
                 }
                 else if ( currentToken.type )
                 {
-                    currentToken.value += stream.current();
+                    currentToken.value += stream.cur();
                     tokens.push( currentToken );
                 }
                 currentToken = { type: null, value: "" };
@@ -158,11 +158,69 @@
                 
                 // ACE Tokenizer compatible
                 return { state: state, tokens: tokens };
-            }
+            },
+            
+            $getIndent : function(line) { return line.match(/^\s*/)[0];  },
+            
+            // TODO
+            getNextLineIndent : function(state, line, tab) { return line.match(/^\s*/)[0]; },
+            
+            getKeywords : function( append ) { return []; },
+            
+            $createKeywordList : function() { return []; },
+
+            // TODO
+            getCompletions : function(state, session, pos, prefix) { return []; }
         }),
         
         getParser = function(grammar, LOCALS) {
-            return new Parser(grammar, LOCALS);
+            return new AceParser(grammar, LOCALS);
+        },
+        
+        getAceMode = function(parser) {
+            
+            // ACE-compatible Mode
+            return {
+                // the custom Parser/Tokenizer
+                getTokenizer: function() { return parser; },
+                
+                /*
+                *   Maybe needed in later versions..
+                */
+                
+                HighlightRules: null,
+                $behaviour: null, //new Behaviour(),
+
+                lineCommentStart: "",
+                blockComment: "",
+
+                toggleCommentLines: function(state, session, startRow, endRow) { return false; },
+
+                toggleBlockComment: function(state, session, range, cursor) {  },
+
+                getNextLineIndent: function(state, line, tab) { return parser.getNextLineIndent(state, line, tab); },
+
+                checkOutdent: function(state, line, input) { return false; },
+
+                autoOutdent: function(state, doc, row) { },
+
+                $getIndent: function(line) { return parser.$getIndent(line); },
+
+                createWorker: function(session) { return null; },
+
+                createModeDelegates: function (mapping) { },
+
+                $delegator: function(method, args, defaultHandler) { },
+
+                transformAction: function(state, action, editor, session, param) { },
+                
+                getKeywords: function( append ) { return parser.getKeywords(append); },
+                
+                $createKeywordList: function() { return parser.$createKeywordList(); },
+
+                getCompletions: function(state, session, pos, prefix) { return parser.getCompletions(state, session, pos, prefix); }
+                
+            };
         }
     ;
   

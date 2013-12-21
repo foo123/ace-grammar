@@ -17,7 +17,7 @@
             "Style" : {
                 
                 // lang token type  -> ACE (style) tag
-                "error":                "error"
+                "error":                "invalid"
             },
 
             //
@@ -170,57 +170,11 @@
             var 
                 LOCALS = { 
                     // default return code, when no match or empty found
-                    // 'invisible' should be used in most cases
+                    // 'text' should be used in most cases
                     DEFAULT: DEFAULT || DEFAULTTYPE
                 }
             ;
             
-            var parser = getParser( grammar, LOCALS );
-            var mode = {
-                
-                // the custom Parser/Tokenizer
-                getTokenizer: function( parser ){ return function() { return parser; }; }( parser ),
-                
-
-                /*
-                *   Maybe needed in later versions..
-                */
-                
-                HighlightRules: null,
-                $behaviour: null, //new Behaviour(),
-
-                lineCommentStart: "",
-                blockComment: "",
-
-                toggleCommentLines: function(state, session, startRow, endRow) { return false; },
-
-                toggleBlockComment: function(state, session, range, cursor) {  },
-
-                getNextLineIndent: function(state, line, tab) { return line.match(/^\s*/)[0];  },
-
-                checkOutdent: function(state, line, input) { return false; },
-
-                autoOutdent: function(state, doc, row) { },
-
-                $getIndent: function(line) { return line.match(/^\s*/)[0]; },
-
-                createWorker: function(session) { return null; },
-
-                createModeDelegates: function (mapping) { },
-
-                $delegator: function(method, args, defaultHandler) { },
-
-                transformAction: function(state, action, editor, session, param) { },
-                
-                getKeywords: function( append ) { return []; },
-                
-                $createKeywordList: function() { return []; },
-
-                getCompletions: function(state, session, pos, prefix) { return []; }
-                
-            };
-            
-            // ACE Mode compatible
-            return mode;
+            return getAceMode( getParser( grammar, LOCALS ) );
         }
     };

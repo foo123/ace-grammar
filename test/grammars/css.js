@@ -23,7 +23,7 @@ var css_grammar = {
         // Style model
         "Style" : {
             // lang token type  -> ACE (style) tag
-            "error":        "error",
+            "error":        "invalid",
             "comment":      "comment",
             "meta":         "attribute",
             "meta2":        "constant",
