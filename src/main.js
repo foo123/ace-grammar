@@ -108,6 +108,10 @@
     * __For browser with dependencies:__
     *
     * ```html
+    * <script src="../build/ace_grammar.bundle.js"></script>
+    * <!-- or -->
+    * <script src="../build/classy.js"></script>
+    * <script src="../build/regexanalyzer.js"></script>
     * <script src="../build/ace_grammar.js"></script>
     * <script> // AceGrammar.getMode(..) , etc.. </script>
     * ```
