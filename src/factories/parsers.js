@@ -7,81 +7,80 @@
             constructor: function(grammar, LOCALS) {
                 this.LOC = LOCALS;
                 this.Grammar = grammar;
-                this.Style = grammar.Style || {};
                 this.Comments = grammar.Comments || {};
-                this.tokens = grammar.Parser || [];
+                this.Tokens = grammar.Parser || [];
                 this.DEF = this.LOC.DEFAULT;
-                this.ERR = this.Style.error || this.LOC.ERROR;
+                this.ERR = (grammar.Style && grammar.Style.error) ? grammar.Style.error : this.LOC.ERROR;
             },
             
             LOC: null,
             ERR: null,
             DEF: null,
             Grammar: null,
-            Style: null,
             Comments: null,
-            tokens: null,
+            Tokens: null,
             
             // ACE Tokenizer compatible
             getLineTokens: function(line, state, row) {
                 
                 var i, rewind, 
-                    tokenizer, tokens, currentToken, type, numTokens = this.tokens.length, 
+                    t, tokens = this.Tokens, numTokens = tokens.length, 
+                    aceTokens, token, type, 
                     stream, stack,
                     LOC = this.LOC,
                     DEFAULT = this.DEF,
                     ERROR = this.ERR
                 ;
                 
-                stream = new StringStream( line );
-                tokens = []; 
+                aceTokens = []; 
+                stream = new ParserStream( line );
                 state = state || new ParserState( );
                 state = state.clone();
                 state.id = 1+row;
                 stack = state.stack;
-                currentToken = { type: null, value: "" };
+                token = { type: null, value: "" };
                 type = null;
                 
                 while ( !stream.eol() )
                 {
                     rewind = false;
                     
-                    if ( type && type !== currentToken.type )
+                    if ( type && type !== token.type )
                     {
-                        if ( currentToken.type ) tokens.push( currentToken );
-                        currentToken = { type: type, value: stream.cur() };
+                        if ( token.type ) aceTokens.push( token );
+                        token = { type: type, value: stream.cur() };
                         stream.sft();
                     }
-                    else if ( currentToken.type )
+                    else if ( token.type )
                     {
-                        currentToken.value += stream.cur();
+                        token.value += stream.cur();
                         stream.sft();
                     }
                     
-                    if ( stream.space() ) 
+                    if ( stream.spc() ) 
                     {
-                        state.currentToken = T_DEFAULT;
+                        state.t = T_DEFAULT;
                         type = DEFAULT;
                         continue;
                     }
                     
                     while ( stack.length && !stream.eol() )
                     {
-                        tokenizer = stack.pop();
-                        type = tokenizer.get(stream, state, LOC);
+                        t = stack.pop();
+                        type = t.get(stream, state, LOC);
                         
                         // match failed
                         if ( false === type )
                         {
                             // error
-                            if ( tokenizer.ERROR || tokenizer.isRequired )
+                            if ( t.ERROR || t.isRequired )
                             {
                                 // empty the stack
                                 stack.length = 0;
                                 // skip this character
                                 stream.nxt();
                                 // generate error
-                                state.currentToken = T_ERROR;
+                                state.t = T_ERROR;
                                 type = ERROR;
                                 rewind = true;
                                 break;
@@ -105,21 +104,21 @@
                     
                     for (i=0; i<numTokens; i++)
                     {
-                        tokenizer = this.tokens[i];
-                        type = tokenizer.get(stream, state, LOC);
+                        t = tokens[i];
+                        type = t.get(stream, state, LOC);
                         
                         // match failed
                         if ( false === type )
                         {
                             // error
-                            if ( tokenizer.ERROR || tokenizer.isRequired )
+                            if ( t.ERROR || t.isRequired )
                             {
                                 // empty the stack
                                 stack.length = 0;
                                 // skip this character
                                 stream.nxt();
                                 // generate error
-                                state.currentToken = T_ERROR;
+                                state.t = T_ERROR;
                                 type = ERROR;
                                 rewind = true;
                                 break;
@@ -143,25 +142,25 @@
                     
                     // unknown, bypass
                     stream.nxt();
-                    state.currentToken = T_DEFAULT;
+                    state.t = T_DEFAULT;
                     type = DEFAULT;
                 }
                 
-                if ( type && type !== currentToken.type )
+                if ( type && type !== token.type )
                 {
-                    if ( currentToken.type ) tokens.push( currentToken );
-                    tokens.push( { type: type, value: stream.cur() } );
+                    if ( token.type ) aceTokens.push( token );
+                    aceTokens.push( { type: type, value: stream.cur() } );
                 }
-                else if ( currentToken.type )
+                else if ( token.type )
                 {
-                    currentToken.value += stream.cur();
-                    tokens.push( currentToken );
+                    token.value += stream.cur();
+                    aceTokens.push( token );
                 }
-                currentToken = { type: null, value: "" };
-                //console.log(tokens);
+                token = { type: null, value: "" };
+                //console.log(aceTokens);
                 
                 // ACE Tokenizer compatible
-                return { state: state, tokens: tokens };
+                return { state: state, tokens: aceTokens };
             },
             
             $getIndent : function(line) { return line.match(/^\s*/)[0];  },
