@@ -6,6 +6,8 @@ __For node with dependencies:__
 
 ```javascript
 AceGrammar = require('build/ace_grammar.js').AceGrammar;
+// or
+AceGrammar = require('build/ace_grammar.bundle.js').AceGrammar;
 ```
 
 __For browser with dependencies:__

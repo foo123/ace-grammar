@@ -103,6 +103,8 @@
     *
     * ```javascript
     * AceGrammar = require('build/ace_grammar.js').AceGrammar;
+    * // or
+    * AceGrammar = require('build/ace_grammar.bundle.js').AceGrammar;
     * ```
     *
     * __For browser with dependencies:__
@@ -175,7 +177,8 @@
                 LOCALS = { 
                     // default return code, when no match or empty found
                     // 'text' should be used in most cases
-                    DEFAULT: DEFAULT || DEFAULTTYPE
+                    DEFAULT: DEFAULT || DEFAULTTYPE,
+                    ERROR: defaultGrammar.Style.error
                 }
             ;
             

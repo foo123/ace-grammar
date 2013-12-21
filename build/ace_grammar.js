@@ -480,7 +480,7 @@
             },
             
             toString: function() {
-                return "_" + this.id + "_" + (this.inBlock);
+                return "_" + this.id + "_" + (this.inBlock)/* + "_" + ((T_ERROR == this.currentToken) ? 1 : 0)*/;
             }
         })
     ;
@@ -1351,7 +1351,7 @@
                 this.LOC = LOCALS;
                 this.Style = grammar.Style || {};
                 this.DEF = this.LOC.DEFAULT;
-                this.ERR = this.Style.error || defaultGrammar.Style.error;
+                this.ERR = this.Style.error || this.LOC.ERROR;
                 this.tokens = grammar.Parser || [];
             },
             
@@ -1671,6 +1671,8 @@
     *
     * ```javascript
     * AceGrammar = require('build/ace_grammar.js').AceGrammar;
+    * // or
+    * AceGrammar = require('build/ace_grammar.bundle.js').AceGrammar;
     * ```
     *
     * __For browser with dependencies:__
@@ -1743,7 +1745,8 @@
                 LOCALS = { 
                     // default return code, when no match or empty found
                     // 'text' should be used in most cases
-                    DEFAULT: DEFAULT || DEFAULTTYPE
+                    DEFAULT: DEFAULT || DEFAULTTYPE,
+                    ERROR: defaultGrammar.Style.error
                 }
             ;
             

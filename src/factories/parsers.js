@@ -8,7 +8,7 @@
                 this.LOC = LOCALS;
                 this.Style = grammar.Style || {};
                 this.DEF = this.LOC.DEFAULT;
-                this.ERR = this.Style.error || defaultGrammar.Style.error;
+                this.ERR = this.Style.error || this.LOC.ERROR;
                 this.tokens = grammar.Parser || [];
             },
             
