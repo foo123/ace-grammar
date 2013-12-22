@@ -187,8 +187,8 @@
                 // the custom Parser/Tokenizer
                 getTokenizer: function() { return parser; },
                 
-                lineCommentStart: (parser.Comments.lineCommentStart) ? parser.Comments.lineCommentStart[0] : null,
-                blockComment: (parser.Comments.blockCommentStart && parser.Comments.blockCommentEnd) ? { start: parser.Comments.blockCommentStart[0], end: parser.Comments.blockCommentEnd[0] } : null,
+                lineCommentStart: (parser.Comments.line) ? parser.Comments.line[0] : null,
+                blockComment: (parser.Comments.block) ? { start: parser.Comments.block[0][0], end: parser.Comments.block[0][1] } : null,
 
                 toggleCommentLines: function(state, session, startRow, endRow) { return false; },
 
