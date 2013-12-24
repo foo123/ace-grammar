@@ -9,6 +9,7 @@
         <script src="../build/regexanalyzer.js"></script>
         <script src="../build/ace_grammar.js"></script>
         <script src="grammars/python.js"></script>
+        <script src="demo.js"></script>
         
         <style type="text/css">
             body {
@@ -127,12 +128,8 @@ class ExampleClass(ParentClass):
         // <![CDATA[
         
         // 2. parse the grammar into an ACE syntax-highlight mode
-        var python_mode = AceGrammar.getMode( python_grammar );
-        
         // 3. use it with ACE
-        var editor = ace.edit("editor");
-        editor.setValue(document.getElementById("code").value);
-        editor.getSession().setMode( python_mode );
+        ace_grammar_demo("editor", AceGrammar.getMode( python_grammar ), document.getElementById("code").value);
         
         // ]]>
         </script>

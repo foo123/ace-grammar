@@ -9,6 +9,7 @@
         <script src="../build/regexanalyzer.js"></script>
         <script src="../build/ace_grammar.js"></script>
         <script src="grammars/php.js"></script>
+        <script src="demo.js"></script>
         
         <style type="text/css">
             body {
@@ -69,12 +70,8 @@ function a_function( &$v1, $v2 )
         // <![CDATA[
         
         // 2. parse the grammar into an ACE syntax-highlight mode
-        var php_mode = AceGrammar.getMode( php_grammar );
-        
         // 3. use it with ACE
-        var editor = ace.edit("editor");
-        editor.setValue(document.getElementById("code").value);
-        editor.getSession().setMode( /*"ace/mode/php"*/ php_mode );
+        ace_grammar_demo("editor", AceGrammar.getMode( php_grammar ), document.getElementById("code").value);
         
         // ]]>
         </script>

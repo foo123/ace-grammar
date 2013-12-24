@@ -4937,6 +4937,8 @@ exports.all = function() {
 oop.implement(exports, EventEmitter);
 
 exports.moduleUrl = function(name, component) {
+    //console.log([name, component]);
+    
     if (options.$moduleUrls[name])
         return options.$moduleUrls[name];
 
@@ -4958,7 +4960,8 @@ exports.moduleUrl = function(name, component) {
         component = sep = "";
     }
     if (path && path.slice(-1) != "/")
-        path += "/";
+        path += "/";;
+    //console.log(path + component + sep + base + this.get("suffix"))
     return path + component + sep + base + this.get("suffix");
 };
 
@@ -4968,6 +4971,7 @@ exports.setModuleUrl = function(name, subst) {
 
 exports.$loading = {};
 exports.loadModule = function(moduleName, onLoad) {
+    //console.log(moduleName);
     var module, moduleType;
     if (Array.isArray(moduleName)) {
         moduleType = moduleName[0];

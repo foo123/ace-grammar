@@ -62,4 +62,3 @@
     function( Classy, RegexAnalyzer, undef ) {
     
     var Class = Classy.Class;
-    var VERSION = "@@VERSION@@";

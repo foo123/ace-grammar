@@ -9,6 +9,7 @@
         <script src="../build/regexanalyzer.js"></script>
         <script src="../build/ace_grammar.js"></script>
         <script src="grammars/javascript.js"></script>
+        <script src="demo.js"></script>
         
         <style type="text/css">
             body {
@@ -33,153 +34,23 @@
 
 <pre id="editor"></pre>
 <textarea id="code" style="display:none">
-    // this is part of the AceGrammar code itself
+// this is part of the AceGrammar code itself
+
+getMode = function(grammar, DEFAULT) {
     
-    // ACE Tokenizer compatible
-    var getLineTokens= function(line, state, row) {
-        
-        var i, numTokens = this.tokens.length, rewind, token, style, stream, stack, tokens, startBlock = 0;
-        
-        var ERROR = this.Style.error || "error";
-        var DEFAULT = this.LOCALS.DEFAULT;
-        
-        if ( !state ) state = this.resetState( state );
-        state = this.copyState( state );
-        stack = state.stack;
-        stream = new Stream( line );
-        tokens = []; 
-        
-        if ( !state.inBlock )
-        {
-            startBlock = 1;
+    var LOCALS = { 
+            // default return code for skipped or not-styled tokens
+            // 'text' should be used in most cases
+            DEFAULT: DEFAULT || DEFAULTSTYLE,
+            ERROR: DEFAULTERROR
         }
-        
-        while ( !stream.eol() )
-        {
-            rewind = false;
-            
-            if ( stream.eatSpace() ) 
-            {
-                state.current = null;
-                state.currentToken = T_DEFAULT;
-                tokens.push( { type: DEFAULT, value: stream.current() } );
-                stream.shift();
-                continue;
-            }
-            
-            while ( stack.length && !stream.eol() )
-            {
-                token = stack.pop();
-                style = token.tokenize(stream, state, this.LOCALS);
-                
-                // match failed
-                if ( false === style )
-                {
-                    // error
-                    if ( token.ERROR || token.isRequired )
-                    {
-                        // empty the stack
-                        state.stack.length = 0;
-                        // skip this character
-                        stream.next();
-                        // generate error
-                        state.current = null;
-                        state.currentToken = T_ERROR;
-                        tokens.push( { type: ERROR, value: stream.current() } );
-                        stream.shift();
-                        rewind = true;
-                        break;
-                    }
-                    // optional
-                    else
-                    {
-                        continue;
-                    }
-                }
-                // found token
-                else
-                {
-                    state.current = token.tokenName;
-                    tokens.push( { type: style, value: stream.current() } );
-                    stream.shift();
-                    rewind = true;
-                    break;
-                }
-            }
-            
-            if ( rewind ) continue;
-            
-            if ( !stream.eol() )
-            {
-                for (i=0; i<numTokens; i++)
-                {
-                    token = this.tokens[i];
-                    style = token.tokenize(stream, state, this.LOCALS);
-                    
-                    // match failed
-                    if ( false === style )
-                    {
-                        // error
-                        if ( token.ERROR || token.isRequired )
-                        {
-                            // empty the stack
-                            state.stack.length = 0;
-                            // skip this character
-                            stream.next();
-                            // generate error
-                            state.current = null;
-                            state.currentToken = T_ERROR;
-                            tokens.push( { type: ERROR, value: stream.current() } );
-                            stream.shift();
-                            rewind = true;
-                            break;
-                        }
-                        // optional
-                        else
-                        {
-                            continue;
-                        }
-                    }
-                    // found token
-                    else
-                    {
-                        state.current = token.tokenName;
-                        tokens.push( { type: style, value: stream.current() } );
-                        stream.shift();
-                        rewind = true;
-                        break;
-                    }
-                }
-            }
-            
-            if ( rewind ) continue;
-            
-            if ( !stream.eol() )
-            {
-                // unknown, bypass
-                stream.skipToEnd();
-                state.current = null;
-                state.currentToken = T_DEFAULT;
-                tokens.push( { type: DEFAULT, value: stream.current() } );
-                stream.shift();
-            }
-        }
-        
-        if ( startBlock && state.inBlock )
-        {
-            state.startBlock = 1;
-        }
-        else
-        {
-            state.startBlock = 0;
-        }
-        
-        //console.log(tokens);
-        //console.log(state);
-        
-        // ACE Tokenizer compatible
-        return { state: state, tokens: tokens };
-    }
+    ;
+    
+    // build the grammar
+    grammar = parseGrammar( grammar );
+    //console.log(grammar);
+    
+    return getAceMode( getParser( grammar, LOCALS ) );
 }
 </textarea>
         <p></p>
@@ -188,12 +59,8 @@
         // <![CDATA[
         
         // 2. parse the grammar into an ACE syntax-highlight mode
-        var js_mode = AceGrammar.getMode( js_grammar );
-        
         // 3. use it with ACE
-        var editor = ace.edit("editor");
-        editor.setValue(document.getElementById("code").value);
-        editor.getSession().setMode( js_mode );
+        ace_grammar_demo("editor", AceGrammar.getMode( js_grammar ), document.getElementById("code").value);
         
         // ]]>
         </script>

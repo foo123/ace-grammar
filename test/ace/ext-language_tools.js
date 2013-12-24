@@ -1140,6 +1140,7 @@ var Autocomplete = function() {
             return;
         }
         this.gatherCompletions(this.editor, function(err, results) {
+            //console.log(results);
             var matches = results && results.matches;
             if (!matches || !matches.length)
                 return this.detach();

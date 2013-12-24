@@ -9,6 +9,7 @@
         <script src="../build/regexanalyzer.js"></script>
         <script src="../build/ace_grammar.js"></script>
         <script src="grammars/css.js"></script>
+        <script src="demo.js"></script>
         
         <style type="text/css">
             body {
@@ -73,12 +74,8 @@ code {
         // <![CDATA[
         
         // 2. parse the grammar into an ACE syntax-highlight mode
-        var css_mode = AceGrammar.getMode( css_grammar );
-        
         // 3. use it with ACE
-        var editor = ace.edit("editor");
-        editor.setValue(document.getElementById("code").value);
-        editor.getSession().setMode( /*"ace/mode/css"*/ css_mode );
+        ace_grammar_demo("editor", AceGrammar.getMode( css_grammar ), document.getElementById("code").value);
         
         // ]]>
         </script>
