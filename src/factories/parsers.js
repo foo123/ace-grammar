@@ -169,8 +169,8 @@
                 //this.Comments = grammar.Comments || {};
                 
                 // support comments toggle
-                this.LC = (grammar.Comments && grammar.Comments.line) ? grammar.Comments.line : null;
-                this.BC = (grammar.Comments && grammar.Comments.block) ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
+                this.LC = grammar.Comments.line || null;
+                this.BC = (grammar.Comments.block) ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
                 if ( this.LC )
                 {
                     if ( T_ARRAY & get_type(this.LC) ) 
@@ -190,10 +190,10 @@
                 }
 
                 this.DEF = LOC.DEFAULT;
-                this.ERR = (grammar.Style && grammar.Style.error) ? grammar.Style.error : LOC.ERROR;
+                this.ERR = grammar.Style.error || LOC.ERROR;
                 
                 // support keyword autocompletion
-                this.Keywords = (grammar.Keywords && grammar.Keywords.autocomplete) ? grammar.Keywords.autocomplete : null;
+                this.Keywords = grammar.Keywords.autocomplete || null;
                 
                 this.Tokens = grammar.Parser || [];
             },
@@ -550,8 +550,6 @@
                 /*
                 // Maybe needed in later versions..
                 
-                createWorker: function(session) { return null; },
-
                 createModeDelegates: function (mapping) { },
 
                 $delegator: function(method, args, defaultHandler) { },
@@ -562,6 +560,8 @@
                 
                 //HighlightRules: null,
                 //$behaviour: parser.$behaviour || null,
+
+                createWorker: function(session) { return null; },
 
                 transformAction: function(state, action, editor, session, param) { },
                 

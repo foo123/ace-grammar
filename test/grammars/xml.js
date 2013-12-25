@@ -17,9 +17,8 @@ var xml_grammar = {
         "autocloseTag":         "keyword",
         "closeTag":             "keyword",
         "attribute":            "variable",
-        "assignment":           "operator",
         "number":               "constant.numeric",
-        "number2":              "constant.numeric",
+        "hexnumber":            "constant.numeric",
         "string":               "string"
     },
 
@@ -54,9 +53,6 @@ var xml_grammar = {
             ]
         },
         
-        // attribute assignment
-        "assignment" : "=",
-        
         // tag attributes
         "attribute" : "RegExp::[_a-zA-Z][_a-zA-Z0-9\\-]*",
         
@@ -73,7 +69,7 @@ var xml_grammar = {
         ],
         
         // hex colors
-        "number2" : "RegExp::#[0-9a-fA-F]+",
+        "hexnumber" : "RegExp::#[0-9a-fA-F]+",
 
         // strings
         "string" : {
@@ -115,13 +111,13 @@ var xml_grammar = {
         "stringOrNumber" : {
             "type" : "group",
             "match" : "either",
-            "tokens" : [ "string", "number", "number2" ] 
+            "tokens" : [ "string", "number", "hexnumber" ] 
         },
         
         "tagAttribute" : { 
             "type" : "group",
             "match" : "all",
-            "tokens" : [ "attribute", "assignment", "stringOrNumber" ]
+            "tokens" : [ "attribute", "=", "stringOrNumber" ]
         },
         
         "tagAttributes" : { 
