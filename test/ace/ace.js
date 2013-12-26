@@ -9635,7 +9635,8 @@ var BackgroundTokenizer = function(tokenizer, editor) {
         //console.log(state1+"");
         //console.log(data.state+"");
         if (this.states[row] + "" !== data.state + "") {
-            //console.log("state changed");
+            //console.log([row, "state changed"]);
+            //console.log(data.state);
             this.states[row] = data.state;
             this.lines[row + 1] = null;
             if (this.currentLine > row + 1)

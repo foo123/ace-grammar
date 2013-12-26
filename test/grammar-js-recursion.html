@@ -34,11 +34,12 @@
 
 <pre id="editor"></pre>
 <textarea id="code" style="display:none">
-/* highlight nested code correctly with recursive grammar  */
+/* highlight nested code correctly with recursive grammar */
 var obj = { 
     foo: [
         1, 2, 3, 
         {
+            /* while comments can be validly interleaved anywhere */
             "foo3": { 
                 foo4: { 
                     "foo5": {}, 

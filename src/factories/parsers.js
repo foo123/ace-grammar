@@ -1,7 +1,6 @@
     
     // ace supposed to be available
-    var _ace = ace || { }, ace_require;
-    ace_require = _ace.require || function() { return { }; };
+    var _ace = ace || { require: function() { return { }; } }, ace_require = _ace.require;
     
     //
     // parser factories
@@ -158,7 +157,7 @@
         }),
         */
         // support indentation/behaviours/comments toggle
-        AceBehaviour = ace_require('ace/mode/behaviour').Behaviour || null,
+        AceBehaviour = /*ace_require('ace/mode/behaviour').Behaviour ||*/ null,
         AceTokenizer = ace_require('ace/tokenizer').Tokenizer || Object,
         AceTokenIterator = ace_require('ace/token_iterator').TokenIterator || Object,
         AceParser = Class(AceTokenizer, {
@@ -196,6 +195,10 @@
                 this.Keywords = grammar.Keywords.autocomplete || null;
                 
                 this.Tokens = grammar.Parser || [];
+                this.cTokens = (grammar.cTokens.length) ? grammar.cTokens : null;
+                
+                /*if (this.cTokens)
+                    this.Tokens = this.cTokens.concat(this.Tokens);*/
             },
             
             //LOC: null,
@@ -210,30 +213,30 @@
             rxStart: null,
             rxEnd: null,
             Keywords: null,
+            cTokens: null,
             Tokens: null,
 
             // ACE Tokenizer compatible
             getLineTokens: function(line, state, row) {
                 
-                var i, rewind, 
-                    tokenizer, tokens = this.Tokens, numTokens = tokens.length, 
+                var i, rewind, rewind2, ci,
+                    tokenizer, interleavedCommentTokens = this.cTokens, tokens = this.Tokens, numTokens = tokens.length, 
                     aceTokens, token, type, 
-                    stream, stack,
-                    DEFAULT = this.DEF,
-                    ERROR = this.ERR
+                    stream, stack, DEFAULT = this.DEF, ERROR = this.ERR
                 ;
                 
+                //state && console.log([row, state.l, state.stack.length ? state.stack[state.stack.length-1].tn : null, state.inBlock]);
                 aceTokens = []; 
                 stream = new ParserStream( line );
                 state = (state) ? state.clone( ) : new ParserState( );
-                state.id = 1+row;
+                state.l = 1+row;
                 stack = state.stack;
                 token = { type: null, value: "" };
                 type = null;
                 
                 while ( !stream.eol() )
                 {
-                    rewind = false;
+                    rewind = 0;
                     
                     if ( type && type !== token.type )
                     {
@@ -250,14 +253,34 @@
                     if ( stream.spc() ) 
                     {
                         state.t = T_DEFAULT;
-                        type = DEFAULT;
+                        state.r = type = DEFAULT;
                         continue;
                     }
                     
                     while ( stack.length && !stream.eol() )
                     {
+                        if ( interleavedCommentTokens )
+                        {
+                            ci = 0; rewind2 = 0;
+                            while ( ci < interleavedCommentTokens.length )
+                            {
+                                tokenizer = interleavedCommentTokens[ci++];
+                                state.r = type = tokenizer.get(stream, state);
+                                if ( false !== type )
+                                {
+                                    rewind2 = 1;
+                                    break;
+                                }
+                            }
+                            if ( rewind2 )
+                            {
+                                rewind = 1;
+                                break;
+                            }
+                        }
+                    
                         tokenizer = stack.pop();
-                        type = tokenizer.get(stream, state);
+                        state.r = type = tokenizer.get(stream, state);
                         
                         // match failed
                         if ( false === type )
@@ -271,8 +294,8 @@
                                 stream.nxt();
                                 // generate error
                                 state.t = T_ERROR;
-                                type = ERROR;
-                                rewind = true;
+                                state.r = type = ERROR;
+                                rewind = 1;
                                 break;
                             }
                             // optional
@@ -284,7 +307,7 @@
                         // found token
                         else
                         {
-                            rewind = true;
+                            rewind = 1;
                             break;
                         }
                     }
@@ -295,7 +318,7 @@
                     for (i=0; i<numTokens; i++)
                     {
                         tokenizer = tokens[i];
-                        type = tokenizer.get(stream, state);
+                        state.r = type = tokenizer.get(stream, state);
                         
                         // match failed
                         if ( false === type )
@@ -309,8 +332,8 @@
                                 stream.nxt();
                                 // generate error
                                 state.t = T_ERROR;
-                                type = ERROR;
-                                rewind = true;
+                                state.r = type = ERROR;
+                                rewind = 1;
                                 break;
                             }
                             // optional
@@ -322,7 +345,7 @@
                         // found token
                         else
                         {
-                            rewind = true;
+                            rewind = 1;
                             break;
                         }
                     }
@@ -333,7 +356,7 @@
                     // unknown, bypass
                     stream.nxt();
                     state.t = T_DEFAULT;
-                    type = DEFAULT;
+                    state.r = type = DEFAULT;
                 }
                 
                 if ( type && type !== token.type )
@@ -348,6 +371,7 @@
                 }
                 token = null; //{ type: null, value: "" };
                 //console.log(aceTokens);
+                //console.log([row, state.l, stack.length ? stack[stack.length-1].tn : null, state.inBlock]);
                 
                 // ACE Tokenizer compatible
                 return { state: state, tokens: aceTokens };
