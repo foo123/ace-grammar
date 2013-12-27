@@ -7,7 +7,7 @@ var xml_grammar = {
     //
     // Style model
     "Style" : {
-        // lang token type  -> ACE (style) tag
+        // lang token type  -> Editor (style) tag
         "commentBlock":         "comment",
         "metaBlock":            "meta",
         "atom":                 "string",

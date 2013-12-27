@@ -21,6 +21,7 @@ See also:  [codemirror-grammar](https://github.com/foo123/codemirror-grammar)
 * [Features](#features)
 * [How To use](#how-to-use)
 * [API Reference](/api-reference.md)
+* [Grammar Reference](/grammar-reference.md)
 * [Other Examples](#other-examples)
 
 [![Build your own syntax-highlight mode on the fly](/test/screenshot.png)](http://foo123.github.io/examples/ace-grammar)
