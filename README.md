@@ -10,7 +10,7 @@ A simple and light-weight ( ~ 15kB minified) [ACE](https://github.com/ajaxorg/ac
 to generate syntax-highlight parsers (ace modes) from a grammar specification in JSON format.
 
 
-See also:  [codemirror-grammar](https://github.com/foo123/codemirror-grammar)
+See also:  [codemirror-grammar](https://github.com/foo123/codemirror-grammar) , [prism-grammar](https://github.com/foo123/prism-grammar)
 
 
 
