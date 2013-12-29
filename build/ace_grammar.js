@@ -1,10 +1,9 @@
 /**
 *
 *   AceGrammar
-*   @version: 0.5.2
-*   Transform a grammar specification in JSON format,
-*   into an ACE syntax-highlight parser mode
+*   @version: 0.5.3.1
 *
+*   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
 *
 **/
@@ -53,15 +52,9 @@
     }
 
 
-}( this, "AceGrammar",
-    // dependencies
-    [
-        ["Classy", "./classy"],  ["RegExAnalyzer", "./regexanalyzer"]
-    ], 
-    // module factory
-    function( Classy, RegexAnalyzer, undef ) {
-    
-    var Class = Classy.Class;
+}( this, /* module name */ "AceGrammar",
+    /* module dependencies */ [ ['Classy', './classy'],  ['RegExAnalyzer', './regexanalyzer'] ], 
+    /* module factory */  function( Classy, RegexAnalyzer, undef ) {
         
     //
     // parser types
@@ -139,6 +132,8 @@
             "Parser" : null
         }
     ;
+    
+    var Class = Classy.Class;
     
     var slice = Array.prototype.slice, splice = Array.prototype.splice, concat = Array.prototype.concat, 
         hasKey = Object.prototype.hasOwnProperty, toStr = Object.prototype.toString, isEnum = Object.prototype.propertyIsEnumerable,
@@ -2051,9 +2046,9 @@
     [/DOC_MARKDOWN]**/
     DEFAULTSTYLE = "text";
     DEFAULTERROR = "invalid";
-    var self = {
+    var self = AceGrammar = {
         
-        VERSION : "0.5.2",
+        VERSION : "0.5.3.1",
         
         // extend a grammar using another base grammar
         /**[DOC_MARKDOWN]
@@ -2100,5 +2095,5 @@
     };
     
     // export it
-    return self;
+    return AceGrammar;
 });

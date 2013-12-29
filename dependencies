@@ -11,6 +11,7 @@
 # One line for each setting, no multiple settings on same line, line indentation does not matter
 # Blocks with =[] define LISTS (arrays)
 # Blocks with ={} define MAPS (hashmaps)
+# Blocks with =[{}] define ORDEREDMAPS (array of hashmaps)
 # Blocks with = or nothing define VALUES (single value)
 # A key and/or value can be quoted (with ", ' or `, quotes) or unquoted
 # Lines with one or multiple '@'s define the end of that many previous blocks
@@ -30,9 +31,21 @@
 
 @ # end block
 
-# do any replacements to the source (map)
-@REPLACE ={}
-    "@@VERSION@@" = "0.5.2"
+# do any replacements to the source (orderedmap)
+@REPLACE =[{}]
+
+    "@@VERSION@@" = "0.5.3.1"
+    
+    "@@MODULE_NAME@@" = "AceGrammar"
+    
+    "@@MODULE_DESC@@" = "Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode"
+    
+    "@@REPO_URL@@" = "https://github.com/foo123/ace-grammar"
+    
+    "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', './classy'],  ['RegExAnalyzer', './regexanalyzer'] ]"
+    
+    "@@MODULE_ARGUMENTS@@"  = "Classy, RegexAnalyzer, undef"
+    
 @ # end block
 
 @OUT =
