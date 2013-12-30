@@ -57,6 +57,9 @@
     /* module dependencies */   [ ['Classy', './classy'],  ['RegExAnalyzer', './regexanalyzer'] ], 
     /* module factory */        function( Classy, RegexAnalyzer, undef ) {
         
+        /* main code starts here */
+
+        
     //
     // parser types
     var    
@@ -2094,6 +2097,9 @@
         [/DOC_MARKDOWN]**/
         getMode : getMode
     };
+
+
+    /* main code ends here */
     
     /* export the module "AceGrammar" */
     return AceGrammar;
