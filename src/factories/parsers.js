@@ -370,6 +370,10 @@
                     aceTokens.push( token );
                 }
                 token = null; //{ type: null, value: "" };
+                
+                // if EOL tokenizer is left on stack, pop it now
+                if ( stack.length && T_EOL == stack[stack.length-1].tt )  stack.pop();
+                
                 //console.log(aceTokens);
                 //console.log([row, state.l, stack.length ? stack[stack.length-1].tn : null, state.inBlock]);
                 
