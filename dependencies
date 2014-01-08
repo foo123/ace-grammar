@@ -34,7 +34,7 @@
 # do any replacements to the source (orderedmap)
 @REPLACE =[{}]
 
-    "@@VERSION@@" = "0.5.4"
+    "@@VERSION@@" = "0.5.5"
     
     "@@MODULE_NAME@@" = "AceGrammar"
     
