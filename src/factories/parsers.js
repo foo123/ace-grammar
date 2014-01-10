@@ -6,156 +6,6 @@
     // parser factories
     var
         AceRange = ace_require('ace/range').Range || Object,
-        // support folding/unfolding
-        /*
-        AceFoldMode = ace_require('ace/mode/folding/fold_mode').FoldMode || Object,
-        ParserFoldMode = Class(AceFoldMode, {
-            constructor: function(start, stop) {
-                this.foldingStartMarker = start || null;
-                this.foldingStopMarker = stop || null;
-            },
-            
-            foldingStartMarker : null,
-            foldingStopMarker : null,
-            
-            getFoldWidget : function(session, foldStyle, row) {
-                if ( !this.foldingStartMarker ) return;
-                var line = session.getLine(row);
-                if (this.foldingStartMarker.test(line)) return "start";
-                if (foldStyle == "markbeginend" && this.foldingStopMarker && this.foldingStopMarker.test(line)) return "end";
-                return "";
-            },
-
-            getFoldWidgetRange : function(session, foldStyle, row, forceMultiline) {
-                var line = session.getLine(row);
-                var match = line.match(this.foldingStartMarker);
-                if (match) 
-                {
-                    var i = match.index;
-
-                    if (match[1])  return this.openingBracketBlock(session, match[1], row, i);
-
-                    var range = session.getCommentFoldRange(row, i + match[0].length, 1);
-
-                    if (range && !range.isMultiLine()) 
-                    {
-                        if (forceMultiline) 
-                            range = this.getSectionRange(session, row);
-                        else if (foldStyle != "all")   
-                            range = null;
-                    }
-
-                    return range;
-                }
-
-                if (foldStyle === "markbegin")  return;
-
-                var match = line.match(this.foldingStopMarker);
-                if (match) 
-                {
-                    var i = match.index + match[0].length;
-
-                    if (match[1])
-                        return this.closingBracketBlock(session, match[1], row, i);
-
-                    return session.getCommentFoldRange(row, i, -1);
-                }
-            },
-
-            getSectionRange : function(session, row) {
-                var line = session.getLine(row);
-                var startIndent = line.search(/\S/);
-                var startRow = row;
-                var startColumn = line.length;
-                row = row + 1;
-                var endRow = row;
-                var maxRow = session.getLength();
-                while (++row < maxRow) 
-                {
-                    line = session.getLine(row);
-                    var indent = line.search(/\S/);
-                    if (indent === -1)
-                        continue;
-                    if  (startIndent > indent)
-                        break;
-                    var subRange = this.getFoldWidgetRange(session, "all", row);
-
-                    if (subRange) 
-                    {
-                        if (subRange.start.row <= startRow) 
-                            break;
-                        else if (subRange.isMultiLine()) 
-                            row = subRange.end.row;
-                        else if (startIndent == indent) 
-                            break;
-                    }
-                    endRow = row;
-                }
-
-                return new AceRange(startRow, startColumn, endRow, session.getLine(endRow).length);
-            },
-
-            indentationBlock : function(session, row, column) {
-                var re = /\S/;
-                var line = session.getLine(row);
-                var startLevel = line.search(re);
-                if (startLevel == -1) return;
-
-                var startColumn = column || line.length;
-                var maxRow = session.getLength();
-                var startRow = row;
-                var endRow = row;
-
-                while (++row < maxRow) 
-                {
-                    var level = session.getLine(row).search(re);
-
-                    if (level == -1)
-                    continue;
-
-                    if (level <= startLevel)
-                    break;
-
-                    endRow = row;
-                }
-
-                if (endRow > startRow) 
-                {
-                    var endColumn = session.getLine(endRow).length;
-                    return new AceRange(startRow, startColumn, endRow, endColumn);
-                }
-            },
-
-            openingBracketBlock : function(session, bracket, row, column, typeRe) {
-                var start = {row: row, column: column + 1};
-                var end = session.$findClosingBracket(bracket, start, typeRe);
-                if (!end) return;
-
-                var fw = session.foldWidgets[end.row];
-                if (fw == null)
-                fw = session.getFoldWidget(end.row);
-
-                if (fw == "start" && end.row > start.row) 
-                {
-                    end.row --;
-                    end.column = session.getLine(end.row).length;
-                }
-                return AceRange.fromPoints(start, end);
-            },
-
-            closingBracketBlock : function(session, bracket, row, column, typeRe) {
-                var end = {row: row, column: column};
-                var start = session.$findOpeningBracket(bracket, end);
-
-                if (!start) return;
-
-                start.column++;
-                end.column--;
-
-                return  AceRange.fromPoints(start, end);
-            }
-        }),
-        */
         // support indentation/behaviours/comments toggle
         AceBehaviour = /*ace_require('ace/mode/behaviour').Behaviour ||*/ null,
         AceTokenizer = ace_require('ace/tokenizer').Tokenizer || Object,
@@ -163,10 +13,6 @@
         AceParser = Class(AceTokenizer, {
             
             constructor: function(grammar, LOC) {
-                //this.LOC = LOC;
-                //this.Grammar = grammar;
-                //this.Comments = grammar.Comments || {};
-                
                 // support comments toggle
                 this.LC = grammar.Comments.line || null;
                 this.BC = (grammar.Comments.block) ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
@@ -196,15 +42,8 @@
                 
                 this.Tokens = grammar.Parser || [];
                 this.cTokens = (grammar.cTokens.length) ? grammar.cTokens : null;
-                
-                /*if (this.cTokens)
-                    this.Tokens = this.cTokens.concat(this.Tokens);*/
             },
             
-            //LOC: null,
-            //Grammar: null,
-            //Comments: null,
-            //$behaviour: null,
             ERR: null,
             DEF: null,
             LC: null,
@@ -225,7 +64,6 @@
                     stream, stack, DEFAULT = this.DEF, ERROR = this.ERR
                 ;
                 
-                //state && console.log([row, state.l, state.stack.length ? state.stack[state.stack.length-1].tn : null, state.inBlock]);
                 aceTokens = []; 
                 stream = new ParserStream( line );
                 state = (state) ? state.clone( ) : new ParserState( );
@@ -233,6 +71,9 @@
                 stack = state.stack;
                 token = { type: null, value: "" };
                 type = null;
+                
+                // if EOL tokenizer is left on stack, pop it now
+                if ( stack.length && T_EOL == stack[stack.length-1].tt ) stack.pop();
                 
                 while ( !stream.eol() )
                 {
@@ -250,11 +91,15 @@
                         stream.sft();
                     }
                     
-                    if ( stream.spc() ) 
+                    // check for non-space tokenizer before parsing space
+                    if ( !stack.length || T_NONSPACE != stack[stack.length-1].tt )
                     {
-                        state.t = T_DEFAULT;
-                        state.r = type = DEFAULT;
-                        continue;
+                        if ( stream.spc() )
+                        {
+                            state.t = T_DEFAULT;
+                            state.r = type = DEFAULT;
+                            continue;
+                        }
                     }
                     
                     while ( stack.length && !stream.eol() )
@@ -281,7 +126,7 @@
                     
                         tokenizer = stack.pop();
                         state.r = type = tokenizer.get(stream, state);
-                        
+                    
                         // match failed
                         if ( false === type )
                         {
@@ -369,13 +214,9 @@
                     token.value += stream.cur();
                     aceTokens.push( token );
                 }
-                token = null; //{ type: null, value: "" };
-                
-                // if EOL tokenizer is left on stack, pop it now
-                if ( stack.length && T_EOL == stack[stack.length-1].tt )  stack.pop();
+                token = null;
                 
                 //console.log(aceTokens);
-                //console.log([row, state.l, stack.length ? stack[stack.length-1].tn : null, state.inBlock]);
                 
                 // ACE Tokenizer compatible
                 return { state: state, tokens: aceTokens };

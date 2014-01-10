@@ -31,16 +31,16 @@
 
 @ # end block
 
+# extract header from this file
+@HEADER =
+./src/main.js
+
 # do any replacements to the source (orderedmap)
 @REPLACE =[{}]
 
-    "@@VERSION@@" = "0.5.5"
+    "@@VERSION@@" = "0.6"
     
     "@@MODULE_NAME@@" = "AceGrammar"
-    
-    "@@MODULE_DESC@@" = "Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode"
-    
-    "@@REPO_URL@@" = "https://github.com/foo123/ace-grammar"
     
     "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', './classy'],  ['RegExAnalyzer', './regexanalyzer'] ]"
     
