@@ -8,20 +8,88 @@
 *
 **/!function ( root, name, deps, factory, undef ) {
 
+    var isNode = (typeof global !== "undefined" && {}.toString.call(global) == '[object global]') ? 1 : 0,
+        isBrowser = (!isNode && typeof navigator !== "undefined") ? 1 : 0, 
+        isWorker = (typeof importScripts === "function" && navigator instanceof WorkerNavigator) ? 1 : 0,
+        A = Array, AP = A.prototype
+    ;
+    // Get current filename/path
+    var getCurrentPath = function() {
+            var file = null;
+            if ( isNode ) 
+            {
+                // http://nodejs.org/docs/latest/api/globals.html#globals_filename
+                // this should hold the current file in node
+                file = __filename;
+                return { path: __dirname, file: __filename };
+            }
+            else if ( isWorker )
+            {
+                // https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation
+                // this should hold the current url in a web worker
+                file = self.location.href;
+            }
+            else if ( isBrowser )
+            {
+                // get last script (should be the current one) in browser
+                var scripts;
+                if ((scripts = document.getElementsByTagName('script')) && scripts.length) 
+                    file  = scripts[scripts.length - 1].src;
+            }
+            
+            if ( file )
+                return { path: file.split('/').slice(0, -1).join('/'), file: file };
+            return { path: null, file: null };
+        },
+        thisPath = getCurrentPath(),
+        makePath = function(base, dep) {
+            if ( isNode )
+            {
+                //return require('path').join(base, dep);
+                return dep;
+            }
+            if ( "." == dep.charAt(0) ) 
+            {
+                base = base.split('/');
+                dep = dep.split('/'); 
+                var index = 0, index2 = 0, i, l = dep.length, l2 = base.length;
+                
+                for (i=0; i<l; i++)
+                {
+                    if ( /^\.\./.test( dep[i] ) )
+                    {
+                        index++;
+                        index2++;
+                    }
+                    else if ( /^\./.test( dep[i] ) )
+                    {
+                        index2++;
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                index = ( index >= l2 ) ? 0 : l2-index;
+                dep = base.slice(0, index).concat( dep.slice( index2 ) ).join('/');
+            }
+            return dep;
+        }
+    ;
+    
     //
     // export the module in a umd-style generic way
     deps = ( deps ) ? [].concat(deps) : [];
-    var A = Array, AP = A.prototype;
-    var i, dl = deps.length, ids = new A( dl ), paths = new A( dl ), mods = new A( dl ), _module_;
-    
-    for (i=0; i<dl; i++) { ids[i] = deps[i][0]; paths[i] = deps[i][1]; }
+    var i, dl = deps.length, ids = new A( dl ), paths = new A( dl ), fpaths = new A( dl ), mods = new A( dl ), _module_, head;
+        
+    for (i=0; i<dl; i++) { ids[i] = deps[i][0]; paths[i] = deps[i][1]; fpaths[i] = /\.js$/i.test(paths[i]) ? makePath(thisPath.path, paths[i]) : makePath(thisPath.path, paths[i]+'.js'); }
     
     // node, commonjs, etc..
     if ( 'object' == typeof( module ) && module.exports ) 
     {
         if ( undef === module.exports[name] )
         {
-            for (i=0; i<dl; i++)  mods[i] = module.exports[ ids[i] ] || require( paths[i] )[ ids[i] ];
+            for (i=0; i<dl; i++)  mods[i] = module.exports[ ids[i] ] || require( fpaths[i] )[ ids[i] ];
             _module_ = factory.apply(root, mods );
             // allow factory just to add to existing modules without returning a new module
             module.exports[ name ] = _module_ || 1;
@@ -38,20 +106,90 @@
                 for (var i=0; i<dl; i++)   mods[i] = exports[ ids[i] ] || args[ i ];
                 _module_ = factory.apply(root, mods );
                 // allow factory just to add to existing modules without returning a new module
-                exports[name] = _module_ || 1;
+                exports[ name ] = _module_ || 1;
             }
         });
     }
     
+    // web worker
+    else if ( isWorker ) 
+    {
+        for (i=0; i<dl; i++)  
+        {
+            if ( !self[ ids[i] ] ) importScripts( fpaths[i] );
+            mods[i] = self[ ids[i] ];
+        }
+        _module_ = factory.apply(root, mods );
+        // allow factory just to add to existing modules without returning a new module
+        self[ name ] = _module_ || 1;
+    }
+    
     // browsers, other loaders, etc..
-    else 
+    else
     {
         if ( undef === root[name] )
         {
+            /*
             for (i=0; i<dl; i++)  mods[i] = root[ ids[i] ];
             _module_ = factory.apply(root, mods );
             // allow factory just to add to existing modules without returning a new module
             root[name] = _module_ || 1;
+            */
+            
+            // load javascript async using <script> tags in browser
+            var loadJs = function(url, callback) {
+                head = head || document.getElementsByTagName("head")[0];
+                var done = 0, script = document.createElement('script');
+                
+                script.type = 'text/javascript';
+                script.language = 'javascript';
+                script.src = url;
+                script.onload = script.onreadystatechange = function() {
+                    if (!done && (!script.readyState || script.readyState == 'loaded' || script.readyState == 'complete'))
+                    {
+                        done = 1;
+                        script.onload = script.onreadystatechange = null;
+                        head.removeChild( script );
+                        script = null;
+                        if ( callback )  callback();
+                    }
+                }
+                // load it
+                head.appendChild( script );
+            };
+
+            var loadNext = function(id, url, callback) { 
+                    if ( !root[ id ] ) 
+                        loadJs( url, callback ); 
+                    else
+                        callback();
+                },
+                continueLoad = function( i ) {
+                    return function() {
+                        if ( i < dl )  mods[ i ] = root[ ids[ i ] ];
+                        if ( ++i < dl )
+                        {
+                            loadNext( ids[ i ], fpaths[ i ], continueLoad( i ) );
+                        }
+                        else
+                        {
+                            _module_ = factory.apply(root, mods );
+                            // allow factory just to add to existing modules without returning a new module
+                            root[ name ] = _module_ || 1;
+                        }
+                    };
+                }
+            ;
+            if ( dl ) 
+            {
+                loadNext( ids[ 0 ], fpaths[ 0 ], continueLoad( 0 ) );
+            }
+            else
+            {
+                _module_ = factory.apply(root, mods );
+                // allow factory just to add to existing modules without returning a new module
+                root[ name ] = _module_ || 1;
+            }
         }
     }
 
@@ -290,7 +428,41 @@
                         .join( "|" )
                     ;
             return [ new RegExp("^(" + combined + ")"+b), { peek: peek, negativepeek: null }, 1 ];
-        }
+        },
+        
+        isNode = (typeof global !== "undefined" && {}.toString.call(global) == '[object global]') ? 1 : 0,
+        isBrowser = (!isNode && typeof navigator !== "undefined") ? 1 : 0, 
+        isWorker = (typeof importScripts === "function" && navigator instanceof WorkerNavigator) ? 1 : 0,
+        
+        // Get current filename/path
+        getCurrentPath = function() {
+            var file = null;
+            if ( isNode ) 
+            {
+                // http://nodejs.org/docs/latest/api/globals.html#globals_filename
+                // this should hold the current file in node
+                file = __filename;
+                return { path: __dirname, file: __filename };
+            }
+            else if ( isWorker )
+            {
+                // https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation
+                // this should hold the current url in a web worker
+                file = self.location.href;
+            }
+            else if ( isBrowser )
+            {
+                // get last script (should be the current one) in browser
+                var scripts;
+                if ((scripts = document.getElementsByTagName('script')) && scripts.length) 
+                    file = scripts[scripts.length - 1].src;
+            }
+            
+            if ( file )
+                return { path: file.split('/').slice(0, -1).join('/'), file: file };
+            return { path: null, file: null };
+        },
+        thisPath = getCurrentPath()
     ;
     
     //
@@ -507,34 +679,35 @@
         SimpleMatcher = Class({
             
             constructor : function(type, name, pattern, key) {
-                this.type = T_SIMPLEMATCHER;
-                this.tt = type || T_CHAR;
-                this.tn = name;
-                this.tk = key || 0;
-                this.tg = 0;
-                this.tp = null;
-                this.p = null;
-                this.np = null;
+                var ayto = this;
+                ayto.type = T_SIMPLEMATCHER;
+                ayto.tt = type || T_CHAR;
+                ayto.tn = name;
+                ayto.tk = key || 0;
+                ayto.tg = 0;
+                ayto.tp = null;
+                ayto.p = null;
+                ayto.np = null;
                 
                 // get a fast customized matcher for < pattern >
-                switch ( this.tt )
+                switch ( ayto.tt )
                 {
                     case T_CHAR: case T_CHARLIST:
-                        this.tp = pattern;
+                        ayto.tp = pattern;
                         break;
                     case T_STR:
-                        this.tp = pattern;
-                        this.p = {};
-                        this.p[ '' + pattern.charAt(0) ] = 1;
+                        ayto.tp = pattern;
+                        ayto.p = {};
+                        ayto.p[ '' + pattern.charAt(0) ] = 1;
                         break;
                     case T_REGEX:
-                        this.tp = pattern[ 0 ];
-                        this.p = pattern[ 1 ].peek || null;
-                        this.np = pattern[ 1 ].negativepeek || null;
-                        this.tg = pattern[ 2 ] || 0;
+                        ayto.tp = pattern[ 0 ];
+                        ayto.p = pattern[ 1 ].peek || null;
+                        ayto.np = pattern[ 1 ].negativepeek || null;
+                        ayto.tg = pattern[ 2 ] || 0;
                         break;
                     case T_NULL:
-                        this.tp = null;
+                        ayto.tp = null;
                         break;
                 }
             },
@@ -557,10 +730,10 @@
             np: null,
             
             get : function(stream, eat) {
-                var matchedResult, 
-                    tokenType = this.tt, tokenKey = this.tk, 
-                    tokenPattern = this.tp, tokenPatternGroup = this.tg,
-                    startsWith = this.p, notStartsWith = this.np
+                var matchedResult, ayto = this,
+                    tokenType = ayto.tt, tokenKey = ayto.tk, 
+                    tokenPattern = ayto.tp, tokenPatternGroup = ayto.tg,
+                    startsWith = ayto.p, notStartsWith = ayto.np
                 ;    
                 // get a fast customized matcher for < pattern >
                 switch ( tokenType )
@@ -594,10 +767,11 @@
         CompositeMatcher = Class(SimpleMatcher, {
             
             constructor : function(name, matchers, useOwnKey) {
-                this.type = T_COMPOSITEMATCHER;
-                this.tn = name;
-                this.ms = matchers;
-                this.ownKey = (false!==useOwnKey);
+                var ayto = this;
+                ayto.type = T_COMPOSITEMATCHER;
+                ayto.tn = name;
+                ayto.ms = matchers;
+                ayto.ownKey = (false!==useOwnKey);
             },
             
             // group of matchers
@@ -619,10 +793,11 @@
         BlockMatcher = Class(SimpleMatcher, {
             
             constructor : function(name, start, end) {
-                this.type = T_BLOCKMATCHER;
-                this.tn = name;
-                this.s = new CompositeMatcher(this.tn + '_Start', start, false);
-                this.e = end;
+                var ayto = this;
+                ayto.type = T_BLOCKMATCHER;
+                ayto.tn = name;
+                ayto.s = new CompositeMatcher(ayto.tn + '_Start', start, false);
+                ayto.e = end;
             },
             
             // start block matcher
@@ -632,7 +807,7 @@
             
             get : function(stream, eat) {
                     
-                var startMatcher = this.s, endMatchers = this.e, token;
+                var ayto = this, startMatcher = ayto.s, endMatchers = ayto.e, token;
                 
                 // matches start of block using startMatcher
                 // and returns the associated endBlock matcher
@@ -648,14 +823,14 @@
                         {
                             // the regex is wrapped in an additional group, 
                             // add 1 to the requested regex group transparently
-                            endMatcher = new SimpleMatcher( T_STR, this.tn + '_End', token[1][ endMatcher+1 ] );
+                            endMatcher = new SimpleMatcher( T_STR, ayto.tn + '_End', token[1][ endMatcher+1 ] );
                         }
                         // string replacement pattern given, get the proper pattern for the ending of this block
                         else if ( T_STR == T )
                         {
                             // the regex is wrapped in an additional group, 
                             // add 1 to the requested regex group transparently
-                            endMatcher = new SimpleMatcher( T_STR, this.tn + '_End', groupReplace(endMatcher, token[1]) );
+                            endMatcher = new SimpleMatcher( T_STR, ayto.tn + '_End', groupReplace(endMatcher, token[1]) );
                         }
                     }
                     return endMatcher;
@@ -810,13 +985,14 @@
         SimpleToken = Class({
             
             constructor : function(name, token, style) {
-                this.tt = T_SIMPLE;
-                this.tn = name;
-                this.t = token;
-                this.r = style;
-                this.required = 0;
-                this.ERR = 0;
-                this.toClone = ['t', 'r'];
+                var ayto = this;
+                ayto.tt = T_SIMPLE;
+                ayto.tn = name;
+                ayto.t = token;
+                ayto.r = style;
+                ayto.required = 0;
+                ayto.ERR = 0;
+                ayto.toClone = ['t', 'r'];
             },
             
             // tokenizer/token name
@@ -832,7 +1008,7 @@
             toClone: null,
             
             get : function( stream, state ) {
-                var token = this.t, type = this.tt;
+                var ayto = this, token = ayto.t, type = ayto.tt;
                 // match EOL ( with possible leading spaces )
                 if ( T_EOL == type ) 
                 { 
@@ -840,23 +1016,22 @@
                     if ( stream.eol() )
                     {
                         state.t = T_DEFAULT; 
-                        //state.r = this.r; 
-                        return this.r; 
+                        //state.r = ayto.r; 
+                        return ayto.r; 
                     }
                 }
                 // match non-space
                 else if ( T_NONSPACE == type ) 
                 { 
-                    this.ERR = ( this.required && stream.spc() && !stream.eol() ) ? 1 : 0;
-                    this.required = 0;
-                    return false;
+                    ayto.ERR = ( ayto.required && stream.spc() && !stream.eol() ) ? 1 : 0;
+                    ayto.required = 0;
                 }
                 // else match a simple token
                 else if ( token.get(stream) ) 
                 { 
-                    state.t = this.tt; 
-                    //state.r = this.r; 
-                    return this.r; 
+                    state.t = ayto.tt; 
+                    //state.r = ayto.r; 
+                    return ayto.r; 
                 }
                 return false;
             },
@@ -873,17 +1048,17 @@
             },
             
             clone : function() {
-                var t, i, toClone = this.toClone, toClonelen;
+                var ayto = this, t, i, toClone = ayto.toClone, toClonelen;
                 
-                t = new this.$class();
-                t.tt = this.tt;
-                t.tn = this.tn;
+                t = new ayto.$class();
+                t.tt = ayto.tt;
+                t.tn = ayto.tn;
                 
                 if (toClone && toClone.length)
                 {
                     toClonelen = toClone.length;
                     for (i=0; i<toClonelen; i++)   
-                        t[ toClone[i] ] = this[ toClone[i] ];
+                        t[ toClone[i] ] = ayto[ toClone[i] ];
                 }
                 return t;
             },
@@ -896,13 +1071,14 @@
         BlockToken = Class(SimpleToken, {
             
             constructor : function(type, name, token, style, styleInterior, allowMultiline, escChar) {
-                this.$super('constructor', name, token, style);
-                this.ri = ( 'undefined' == typeof(styleInterior) ) ? this.r : styleInterior;
-                this.tt = type;
+                var ayto = this;
+                ayto.$super('constructor', name, token, style);
+                ayto.ri = ( 'undefined' == typeof(styleInterior) ) ? ayto.r : styleInterior;
+                ayto.tt = type;
                 // a block is multiline by default
-                this.mline = ( 'undefined' == typeof(allowMultiline) ) ? 1 : allowMultiline;
-                this.esc = escChar || "\\";
-                this.toClone = ['t', 'r', 'ri', 'mline', 'esc'];
+                ayto.mline = ( 'undefined' == typeof(allowMultiline) ) ? 1 : allowMultiline;
+                ayto.esc = escChar || "\\";
+                ayto.toClone = ['t', 'r', 'ri', 'mline', 'esc'];
             },    
             
             // return val for interior
@@ -912,10 +1088,10 @@
             
             get : function( stream, state ) {
             
-                var ended = 0, found = 0, endBlock, next = "", continueToNextLine, stackPos, 
-                    allowMultiline = this.mline, startBlock = this.t, thisBlock = this.tn, type = this.tt,
-                    style = this.r, styleInterior = this.ri, differentInterior = (style != styleInterior),
-                    charIsEscaped = 0, isEscapedBlock = (T_ESCBLOCK == type), escChar = this.esc,
+                var ayto = this, ended = 0, found = 0, endBlock, next = "", continueToNextLine, stackPos, 
+                    allowMultiline = ayto.mline, startBlock = ayto.t, thisBlock = ayto.tn, type = ayto.tt,
+                    style = ayto.r, styleInterior = ayto.ri, differentInterior = (style != styleInterior),
+                    charIsEscaped = 0, isEscapedBlock = (T_ESCBLOCK == type), escChar = ayto.esc,
                     isEOLBlock, alreadyIn, ret, streamPos, streamPos0, continueBlock
                 ;
                 
@@ -923,11 +1099,11 @@
                     This tokenizer class handles many different block types ( BLOCK, COMMENT, ESC_BLOCK, SINGLE_LINE_BLOCK ),
                     having different styles ( DIFFERENT BLOCK DELIMS/INTERIOR ) etc..
                     So logic can become somewhat complex,
-                    descriptive names and logic used here for transparency as far as possible
+                    descriptive names and logic used here for clarity as far as possible
                 */
                 
                 // comments in general are not required tokens
-                if ( T_COMMENT == type ) this.required = 0;
+                if ( T_COMMENT == type ) ayto.required = 0;
                 
                 alreadyIn = 0;
                 if ( state.inBlock == thisBlock )
@@ -955,7 +1131,7 @@
                     {
                         if ( alreadyIn && isEOLBlock && stream.sol() )
                         {
-                            this.required = 0;
+                            ayto.required = 0;
                             state.inBlock = null;
                             state.endBlock = null;
                             return false;
@@ -963,7 +1139,7 @@
                         
                         if ( !alreadyIn )
                         {
-                            this.push( state.stack, stackPos, this.clone() );
+                            ayto.push( state.stack, stackPos, ayto.clone() );
                             state.t = type;
                             //state.r = ret; 
                             return ret;
@@ -1023,7 +1199,7 @@
                     }
                     else
                     {
-                        this.push( state.stack, stackPos, this.clone() );
+                        ayto.push( state.stack, stackPos, ayto.clone() );
                     }
                     
                     state.t = type;
@@ -1040,15 +1216,16 @@
         RepeatedTokens = Class(SimpleToken, {
                 
             constructor : function( name, tokens, min, max ) {
-                this.tt = T_REPEATED;
-                this.tn = name || null;
-                this.t = null;
-                this.ts = null;
-                this.min = min || 0;
-                this.max = max || INF;
-                this.found = 0;
-                this.toClone = ['ts', 'min', 'max', 'found'];
-                if (tokens) this.set( tokens );
+                var ayto = this;
+                ayto.tt = T_REPEATED;
+                ayto.tn = name || null;
+                ayto.t = null;
+                ayto.ts = null;
+                ayto.min = min || 0;
+                ayto.max = max || INF;
+                ayto.found = 0;
+                ayto.toClone = ['ts', 'min', 'max', 'found'];
+                if (tokens) ayto.set( tokens );
             },
             
             ts: null,
@@ -1063,12 +1240,12 @@
             
             get : function( stream, state ) {
             
-                var i, token, style, tokens = this.ts, n = tokens.length, 
-                    found = this.found, min = this.min, max = this.max,
+                var ayto = this, i, token, style, tokens = ayto.ts, n = tokens.length, 
+                    found = ayto.found, min = ayto.min, max = ayto.max,
                     tokensRequired = 0, streamPos, stackPos;
                 
-                this.ERR = 0;
-                this.required = 0;
+                ayto.ERR = 0;
+                ayto.required = 0;
                 streamPos = stream.pos;
                 stackPos = state.stack.length;
                 
@@ -1083,9 +1260,9 @@
                         if ( found <= max )
                         {
                             // push it to the stack for more
-                            this.found = found;
-                            this.push( state.stack, stackPos, this.clone() );
-                            this.found = 0;
+                            ayto.found = found;
+                            ayto.push( state.stack, stackPos, ayto.clone() );
+                            ayto.found = 0;
                             return style;
                         }
                         break;
@@ -1097,8 +1274,8 @@
                     if ( token.ERR ) stream.bck2( streamPos );
                 }
                 
-                this.required = found < min;
-                this.ERR = found > max || (found < min && 0 < tokensRequired);
+                ayto.required = found < min;
+                ayto.ERR = found > max || (found < min && 0 < tokensRequired);
                 return false;
             }
         }),
@@ -1112,11 +1289,11 @@
             
             get : function( stream, state ) {
             
-                var style, token, i, tokens = this.ts, n = tokens.length, 
+                var ayto = this, style, token, i, tokens = ayto.ts, n = tokens.length, 
                     tokensRequired = 0, tokensErr = 0, streamPos;
                 
-                this.required = 1;
-                this.ERR = 0;
+                ayto.required = 1;
+                ayto.ERR = 0;
                 streamPos = stream.pos;
                 
                 for (i=0; i<n; i++)
@@ -1137,8 +1314,8 @@
                     }
                 }
                 
-                this.required = (tokensRequired > 0);
-                this.ERR = (n == tokensErr && tokensRequired > 0);
+                ayto.required = (tokensRequired > 0);
+                ayto.ERR = (n == tokensErr && tokensRequired > 0);
                 return false;
             }
         }),
@@ -1152,11 +1329,11 @@
             
             get : function( stream, state ) {
                 
-                var token, style, tokens = this.ts, n = tokens.length,
+                var ayto = this, token, style, tokens = ayto.ts, n = tokens.length,
                     streamPos, stackPos;
                 
-                this.required = 1;
-                this.ERR = 0;
+                ayto.required = 1;
+                ayto.ERR = 0;
                 streamPos = stream.pos;
                 stackPos = state.stack.length;
                 token = tokens[ 0 ].clone().require( 1 );
@@ -1165,18 +1342,18 @@
                 if ( false !== style )
                 {
                     for (var i=n-1; i>0; i--)
-                        this.push( state.stack, stackPos+n-i-1, tokens[ i ].clone().require( 1 ) );
+                        ayto.push( state.stack, stackPos+n-i-1, tokens[ i ].clone().require( 1 ) );
                         
                     return style;
                 }
                 else if ( token.ERR /*&& token.required*/ )
                 {
-                    this.ERR = 1;
+                    ayto.ERR = 1;
                     stream.bck2( streamPos );
                 }
                 else if ( token.required )
                 {
-                    this.ERR = 1;
+                    ayto.ERR = 1;
                 }
                 
                 return false;
@@ -1192,11 +1369,11 @@
             
             get : function( stream, state ) {
                 
-                var token, style, tokens = this.ts, n = tokens.length, 
+                var ayto = this, token, style, tokens = ayto.ts, n = tokens.length, 
                     streamPos, stackPos;
                 
-                this.required = 0;
-                this.ERR = 0;
+                ayto.required = 0;
+                ayto.ERR = 0;
                 streamPos = stream.pos;
                 stackPos = state.stack.length;
                 token = tokens[ 0 ].clone().require( 0 );
@@ -1205,7 +1382,7 @@
                 if ( false !== style )
                 {
                     for (var i=n-1; i>0; i--)
-                        this.push( state.stack, stackPos+n-i-1, tokens[ i ].clone().require( 1 ) );
+                        ayto.push( state.stack, stackPos+n-i-1, tokens[ i ].clone().require( 1 ) );
                     
                     return style;
                 }
@@ -1471,48 +1648,48 @@
     ;
       
     // ace supposed to be available
-    var _ace = ace || { require: function() { return { }; } }, ace_require = _ace.require;
+    var _ace = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; } }, ace_require = _ace.require;
     
     //
     // parser factories
     var
         AceRange = ace_require('ace/range').Range || Object,
         // support indentation/behaviours/comments toggle
-        AceBehaviour = /*ace_require('ace/mode/behaviour').Behaviour ||*/ null,
         AceTokenizer = ace_require('ace/tokenizer').Tokenizer || Object,
         AceTokenIterator = ace_require('ace/token_iterator').TokenIterator || Object,
         AceParser = Class(AceTokenizer, {
             
             constructor: function(grammar, LOC) {
+                var ayto = this;
                 // support comments toggle
-                this.LC = grammar.Comments.line || null;
-                this.BC = (grammar.Comments.block) ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
-                if ( this.LC )
+                ayto.LC = grammar.Comments.line || null;
+                ayto.BC = (grammar.Comments.block) ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
+                if ( ayto.LC )
                 {
-                    if ( T_ARRAY & get_type(this.LC) ) 
+                    if ( T_ARRAY & get_type(ayto.LC) ) 
                     {
-                        var rxLine = this.LC.map( escRegexp ).join( "|" );
+                        var rxLine = ayto.LC.map( escRegexp ).join( "|" );
                     } 
                     else 
                     {
-                        var rxLine = escRegexp( this.LC );
+                        var rxLine = escRegexp( ayto.LC );
                     }
-                    this.rxLine = new RegExp("^(\\s*)(?:" + rxLine + ") ?");
+                    ayto.rxLine = new RegExp("^(\\s*)(?:" + rxLine + ") ?");
                 }
-                if ( this.BC )
+                if ( ayto.BC )
                 {
-                    this.rxStart = new RegExp("^(\\s*)(?:" + escRegexp(this.BC.start) + ")");
-                    this.rxEnd = new RegExp("(?:" + escRegexp(this.BC.end) + ")\\s*$");
+                    ayto.rxStart = new RegExp("^(\\s*)(?:" + escRegexp(ayto.BC.start) + ")");
+                    ayto.rxEnd = new RegExp("(?:" + escRegexp(ayto.BC.end) + ")\\s*$");
                 }
 
-                this.DEF = LOC.DEFAULT;
-                this.ERR = grammar.Style.error || LOC.ERROR;
+                ayto.DEF = LOC.DEFAULT;
+                ayto.ERR = grammar.Style.error || LOC.ERROR;
                 
                 // support keyword autocompletion
-                this.Keywords = grammar.Keywords.autocomplete || null;
+                ayto.Keywords = grammar.Keywords.autocomplete || null;
                 
-                this.Tokens = grammar.Parser || [];
-                this.cTokens = (grammar.cTokens.length) ? grammar.cTokens : null;
+                ayto.Tokens = grammar.Parser || [];
+                ayto.cTokens = (grammar.cTokens.length) ? grammar.cTokens : null;
             },
             
             ERR: null,
@@ -1526,13 +1703,27 @@
             cTokens: null,
             Tokens: null,
 
+            parse: function(code) {
+                code = code || "";
+                var lines = code.split(/\r\n|\r|\n/g), l = lines.length, i;
+                var tokens = [], data;
+                data = { state: new ParserState( ), tokens: null };
+                
+                for (i=0; i<l; i++)
+                {
+                    data = this.getLineTokens(lines[i], data.state, i);
+                    tokens.push(data.tokens);
+                }
+                return tokens;
+            },
+            
             // ACE Tokenizer compatible
             getLineTokens: function(line, state, row) {
                 
-                var i, rewind, rewind2, ci,
-                    tokenizer, interleavedCommentTokens = this.cTokens, tokens = this.Tokens, numTokens = tokens.length, 
-                    aceTokens, token, type, 
-                    stream, stack, DEFAULT = this.DEF, ERROR = this.ERR
+                var ayto = this, i, rewind, rewind2, ci,
+                    tokenizer, interleavedCommentTokens = ayto.cTokens, tokens = ayto.Tokens, numTokens = tokens.length, 
+                    aceTokens, token, type, currentError = null,
+                    stream, stack, DEFAULT = ayto.DEF, ERROR = ayto.ERR
                 ;
                 
                 aceTokens = []; 
@@ -1553,7 +1744,8 @@
                     if ( type && type !== token.type )
                     {
                         if ( token.type ) aceTokens.push( token );
-                        token = { type: type, value: stream.cur() };
+                        token = { type: type, value: stream.cur(), error: currentError };
+                        currentError = null;
                         stream.sft();
                     }
                     else if ( token.type )
@@ -1612,6 +1804,7 @@
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
+                                currentError = tokenizer.tn + " " + ((tokenizer.required) ? "is missing" : "syntax error");
                                 break;
                             }
                             // optional
@@ -1650,6 +1843,7 @@
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
+                                currentError = tokenizer.tn + " " + ((tokenizer.required) ? "is missing" : "syntax error");
                                 break;
                             }
                             // optional
@@ -1678,7 +1872,8 @@
                 if ( type && type !== token.type )
                 {
                     if ( token.type ) aceTokens.push( token );
-                    aceTokens.push( { type: type, value: stream.cur() } );
+                    aceTokens.push( { type: type, value: stream.cur(), error: currentError } );
+                    currentError = null;
                 }
                 else if ( token.type )
                 {
@@ -1694,6 +1889,7 @@
             },
             
             tCL : function(state, session, startRow, endRow) {
+                var ayto = this;
                 var doc = session.doc;
                 var ignoreBlankLines = true;
                 var shouldRemove = true;
@@ -1701,14 +1897,14 @@
                 var tabSize = session.getTabSize();
                 var insertAtTabStop = false;
                 
-                if ( !this.LC ) 
+                if ( !ayto.LC ) 
                 {
-                    if ( !this.BC ) return false;
+                    if ( !ayto.BC ) return false;
                     
-                    var lineCommentStart = this.BC.start;
-                    var lineCommentEnd = this.BC.end;
-                    var regexpStart = this.rxStart;
-                    var regexpEnd = this.rxEnd;
+                    var lineCommentStart = ayto.BC.start;
+                    var lineCommentEnd = ayto.BC.end;
+                    var regexpStart = ayto.rxStart;
+                    var regexpEnd = ayto.rxEnd;
 
                     var comment = function(line, i) {
                         if (testRemove(line, i)) return;
@@ -1738,8 +1934,8 @@
                 } 
                 else 
                 {
-                    var lineCommentStart = (T_ARRAY == get_type(this.LC)) ? this.LC[0] : this.LC;
-                    var regexpLine = this.rxLine;
+                    var lineCommentStart = (T_ARRAY == get_type(ayto.LC)) ? ayto.LC[0] : ayto.LC;
+                    var regexpLine = ayto.rxLine;
                     var commentWithSpace = lineCommentStart + " ";
                     
                     insertAtTabStop = session.getUseSoftTabs();
@@ -1810,7 +2006,8 @@
             },
 
             tBC : function(state, session, range, cursor) {
-                var comment = this.BC;
+                var ayto = this;
+                var comment = ayto.BC;
                 if (!comment) return;
 
                 var iterator = new AceTokenIterator(session, cursor.row, cursor.column);
@@ -1831,7 +2028,7 @@
                             var row = iterator.getCurrentTokenRow();
                             var column = iterator.getCurrentTokenColumn() + i;
                             startRange = new AceRange(row, column, row, column + comment.start.length);
-                            break
+                            break;
                         }
                         token = iterator.stepBackward();
                     };
@@ -1856,12 +2053,12 @@
                     {
                         session.remove(startRange);
                         startRow = startRange.start.row;
-                        colDiff = -comment.start.length
+                        colDiff = -comment.start.length;
                     }
                 } 
                 else 
                 {
-                    colDiff = comment.start.length
+                    colDiff = comment.start.length;
                     startRow = range.start.row;
                     session.insert(range.end, comment.end);
                     session.insert(range.start, comment.start);
@@ -1883,10 +2080,13 @@
             return new AceParser(grammar, LOCALS);
         },
         
-        getAceMode = function(parser) {
+        WorkerClient,
+        
+        getAceMode = function(parser, grammar) {
             
+            var mode;
             // ACE-compatible Mode
-            return {
+            return mode = {
                 /*
                 // Maybe needed in later versions..
                 
@@ -1898,11 +2098,36 @@
                 // the custom Parser/Tokenizer
                 getTokenizer: function() { return parser; },
                 
+                supportAnnotations: false,
+                
                 //HighlightRules: null,
                 //$behaviour: parser.$behaviour || null,
 
-                createWorker: function(session) { return null; },
+                createWorker: function(session) {
+                    // TODO, IN PROGRESS
+                    return null;
+                    /*
+                    if ( !mode.supportAnnotations ) return null;
+                    
+                    var worker = new AceWorkerClient(['ace'], thisPath.file, "AceGrammar");
+                    
+                    // create a worker for this grammar
+                    worker.call('__init__', [grammar], function(){
+                        // hook worker to enable error annotations
+                        worker.on("error", function(e) {
+                            session.setAnnotations(e.data);
+                        });
 
+                        worker.on("ok", function() {
+                            session.clearAnnotations();
+                        });
+                    });
+                    worker.attachToDocument(session.getDocument());
+                    
+                    return worker;
+                    */
+                },
+                
                 transformAction: function(state, action, editor, session, param) { },
                 
                 //lineCommentStart: parser.LC,
@@ -1957,11 +2182,12 @@
                 }
             ;
             
+            grammar = clone(grammar);
             // build the grammar
-            grammar = parseGrammar( grammar );
+            var parsedgrammar = parseGrammar( grammar );
             //console.log(grammar);
             
-            return getAceMode( getParser( grammar, LOCALS ) );
+            return getAceMode( getParser( parsedgrammar, LOCALS ), grammar );
         }
     ;
   /**
@@ -2002,7 +2228,7 @@
     [/DOC_MARKDOWN]**/
     DEFAULTSTYLE = "text";
     DEFAULTERROR = "invalid";
-    var self = AceGrammar = {
+    var AceGrammar = isWorker ? AceWorker : {
         
         VERSION : "0.6",
         

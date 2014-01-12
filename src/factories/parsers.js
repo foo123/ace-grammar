@@ -1,47 +1,47 @@
     
     // ace supposed to be available
-    var _ace = ace || { require: function() { return { }; } }, ace_require = _ace.require;
+    var _ace = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; } }, ace_require = _ace.require;
     
     //
     // parser factories
     var
         AceRange = ace_require('ace/range').Range || Object,
         // support indentation/behaviours/comments toggle
-        AceBehaviour = /*ace_require('ace/mode/behaviour').Behaviour ||*/ null,
         AceTokenizer = ace_require('ace/tokenizer').Tokenizer || Object,
         AceTokenIterator = ace_require('ace/token_iterator').TokenIterator || Object,
         AceParser = Class(AceTokenizer, {
             
             constructor: function(grammar, LOC) {
+                var ayto = this;
                 // support comments toggle
-                this.LC = grammar.Comments.line || null;
-                this.BC = (grammar.Comments.block) ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
-                if ( this.LC )
+                ayto.LC = grammar.Comments.line || null;
+                ayto.BC = (grammar.Comments.block) ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
+                if ( ayto.LC )
                 {
-                    if ( T_ARRAY & get_type(this.LC) ) 
+                    if ( T_ARRAY & get_type(ayto.LC) ) 
                     {
-                        var rxLine = this.LC.map( escRegexp ).join( "|" );
+                        var rxLine = ayto.LC.map( escRegexp ).join( "|" );
                     } 
                     else 
                     {
-                        var rxLine = escRegexp( this.LC );
+                        var rxLine = escRegexp( ayto.LC );
                     }
-                    this.rxLine = new RegExp("^(\\s*)(?:" + rxLine + ") ?");
+                    ayto.rxLine = new RegExp("^(\\s*)(?:" + rxLine + ") ?");
                 }
-                if ( this.BC )
+                if ( ayto.BC )
                 {
-                    this.rxStart = new RegExp("^(\\s*)(?:" + escRegexp(this.BC.start) + ")");
-                    this.rxEnd = new RegExp("(?:" + escRegexp(this.BC.end) + ")\\s*$");
+                    ayto.rxStart = new RegExp("^(\\s*)(?:" + escRegexp(ayto.BC.start) + ")");
+                    ayto.rxEnd = new RegExp("(?:" + escRegexp(ayto.BC.end) + ")\\s*$");
                 }
 
-                this.DEF = LOC.DEFAULT;
-                this.ERR = grammar.Style.error || LOC.ERROR;
+                ayto.DEF = LOC.DEFAULT;
+                ayto.ERR = grammar.Style.error || LOC.ERROR;
                 
                 // support keyword autocompletion
-                this.Keywords = grammar.Keywords.autocomplete || null;
+                ayto.Keywords = grammar.Keywords.autocomplete || null;
                 
-                this.Tokens = grammar.Parser || [];
-                this.cTokens = (grammar.cTokens.length) ? grammar.cTokens : null;
+                ayto.Tokens = grammar.Parser || [];
+                ayto.cTokens = (grammar.cTokens.length) ? grammar.cTokens : null;
             },
             
             ERR: null,
@@ -55,13 +55,27 @@
             cTokens: null,
             Tokens: null,
 
+            parse: function(code) {
+                code = code || "";
+                var lines = code.split(/\r\n|\r|\n/g), l = lines.length, i;
+                var tokens = [], data;
+                data = { state: new ParserState( ), tokens: null };
+                
+                for (i=0; i<l; i++)
+                {
+                    data = this.getLineTokens(lines[i], data.state, i);
+                    tokens.push(data.tokens);
+                }
+                return tokens;
+            },
+            
             // ACE Tokenizer compatible
             getLineTokens: function(line, state, row) {
                 
-                var i, rewind, rewind2, ci,
-                    tokenizer, interleavedCommentTokens = this.cTokens, tokens = this.Tokens, numTokens = tokens.length, 
-                    aceTokens, token, type, 
-                    stream, stack, DEFAULT = this.DEF, ERROR = this.ERR
+                var ayto = this, i, rewind, rewind2, ci,
+                    tokenizer, interleavedCommentTokens = ayto.cTokens, tokens = ayto.Tokens, numTokens = tokens.length, 
+                    aceTokens, token, type, currentError = null,
+                    stream, stack, DEFAULT = ayto.DEF, ERROR = ayto.ERR
                 ;
                 
                 aceTokens = []; 
@@ -82,7 +96,8 @@
                     if ( type && type !== token.type )
                     {
                         if ( token.type ) aceTokens.push( token );
-                        token = { type: type, value: stream.cur() };
+                        token = { type: type, value: stream.cur(), error: currentError };
+                        currentError = null;
                         stream.sft();
                     }
                     else if ( token.type )
@@ -141,6 +156,7 @@
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
+                                currentError = tokenizer.tn + " " + ((tokenizer.required) ? "is missing" : "syntax error");
                                 break;
                             }
                             // optional
@@ -179,6 +195,7 @@
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
+                                currentError = tokenizer.tn + " " + ((tokenizer.required) ? "is missing" : "syntax error");
                                 break;
                             }
                             // optional
@@ -207,7 +224,8 @@
                 if ( type && type !== token.type )
                 {
                     if ( token.type ) aceTokens.push( token );
-                    aceTokens.push( { type: type, value: stream.cur() } );
+                    aceTokens.push( { type: type, value: stream.cur(), error: currentError } );
+                    currentError = null;
                 }
                 else if ( token.type )
                 {
@@ -223,6 +241,7 @@
             },
             
             tCL : function(state, session, startRow, endRow) {
+                var ayto = this;
                 var doc = session.doc;
                 var ignoreBlankLines = true;
                 var shouldRemove = true;
@@ -230,14 +249,14 @@
                 var tabSize = session.getTabSize();
                 var insertAtTabStop = false;
                 
-                if ( !this.LC ) 
+                if ( !ayto.LC ) 
                 {
-                    if ( !this.BC ) return false;
+                    if ( !ayto.BC ) return false;
                     
-                    var lineCommentStart = this.BC.start;
-                    var lineCommentEnd = this.BC.end;
-                    var regexpStart = this.rxStart;
-                    var regexpEnd = this.rxEnd;
+                    var lineCommentStart = ayto.BC.start;
+                    var lineCommentEnd = ayto.BC.end;
+                    var regexpStart = ayto.rxStart;
+                    var regexpEnd = ayto.rxEnd;
 
                     var comment = function(line, i) {
                         if (testRemove(line, i)) return;
@@ -267,8 +286,8 @@
                 } 
                 else 
                 {
-                    var lineCommentStart = (T_ARRAY == get_type(this.LC)) ? this.LC[0] : this.LC;
-                    var regexpLine = this.rxLine;
+                    var lineCommentStart = (T_ARRAY == get_type(ayto.LC)) ? ayto.LC[0] : ayto.LC;
+                    var regexpLine = ayto.rxLine;
                     var commentWithSpace = lineCommentStart + " ";
                     
                     insertAtTabStop = session.getUseSoftTabs();
@@ -339,7 +358,8 @@
             },
 
             tBC : function(state, session, range, cursor) {
-                var comment = this.BC;
+                var ayto = this;
+                var comment = ayto.BC;
                 if (!comment) return;
 
                 var iterator = new AceTokenIterator(session, cursor.row, cursor.column);
@@ -360,7 +380,7 @@
                             var row = iterator.getCurrentTokenRow();
                             var column = iterator.getCurrentTokenColumn() + i;
                             startRange = new AceRange(row, column, row, column + comment.start.length);
-                            break
+                            break;
                         }
                         token = iterator.stepBackward();
                     };
@@ -385,12 +405,12 @@
                     {
                         session.remove(startRange);
                         startRow = startRange.start.row;
-                        colDiff = -comment.start.length
+                        colDiff = -comment.start.length;
                     }
                 } 
                 else 
                 {
-                    colDiff = comment.start.length
+                    colDiff = comment.start.length;
                     startRow = range.start.row;
                     session.insert(range.end, comment.end);
                     session.insert(range.start, comment.start);
@@ -412,10 +432,13 @@
             return new AceParser(grammar, LOCALS);
         },
         
-        getAceMode = function(parser) {
+        WorkerClient,
+        
+        getAceMode = function(parser, grammar) {
             
+            var mode;
             // ACE-compatible Mode
-            return {
+            return mode = {
                 /*
                 // Maybe needed in later versions..
                 
@@ -427,11 +450,36 @@
                 // the custom Parser/Tokenizer
                 getTokenizer: function() { return parser; },
                 
+                supportAnnotations: false,
+                
                 //HighlightRules: null,
                 //$behaviour: parser.$behaviour || null,
 
-                createWorker: function(session) { return null; },
+                createWorker: function(session) {
+                    // TODO, IN PROGRESS
+                    return null;
+                    /*
+                    if ( !mode.supportAnnotations ) return null;
+                    
+                    var worker = new AceWorkerClient(['ace'], thisPath.file, "AceGrammar");
+                    
+                    // create a worker for this grammar
+                    worker.call('__init__', [grammar], function(){
+                        // hook worker to enable error annotations
+                        worker.on("error", function(e) {
+                            session.setAnnotations(e.data);
+                        });
 
+                        worker.on("ok", function() {
+                            session.clearAnnotations();
+                        });
+                    });
+                    worker.attachToDocument(session.getDocument());
+                    
+                    return worker;
+                    */
+                },
+                
                 transformAction: function(state, action, editor, session, param) { },
                 
                 //lineCommentStart: parser.LC,
@@ -486,11 +534,12 @@
                 }
             ;
             
+            grammar = clone(grammar);
             // build the grammar
-            grammar = parseGrammar( grammar );
+            var parsedgrammar = parseGrammar( grammar );
             //console.log(grammar);
             
-            return getAceMode( getParser( grammar, LOCALS ) );
+            return getAceMode( getParser( parsedgrammar, LOCALS ), grammar );
         }
     ;
   

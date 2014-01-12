@@ -26,6 +26,8 @@
     ./src/factories/matchers.js
     ./src/factories/tokenizers.js
     ./src/factories/parsers.js
+    # IN PROGRESS
+    #./src/factories/workers.js
     ./src/main.js
     !tpl:umd-footer.tpl.js  # include a umd-footer template
 
