@@ -1805,7 +1805,7 @@
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
-                                currentError = tokenizer.tn + " " + ((tokenizer.required) ? "is missing" : "syntax error");
+                                currentError = tokenizer.tn + ((tokenizer.required) ? " is missing" : " syntax error");
                                 break;
                             }
                             // optional
@@ -1844,7 +1844,7 @@
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
-                                currentError = tokenizer.tn + " " + ((tokenizer.required) ? "is missing" : "syntax error");
+                                currentError = tokenizer.tn + ((tokenizer.required) ? " is missing" : " syntax error");
                                 break;
                             }
                             // optional
@@ -2391,7 +2391,7 @@
                 //console.log('__init__ called '+id);
                 //console.log(grammar);
                 this.parser = getParser( parseGrammar( grammar ), { DEFAULT: DEFAULTSTYLE, ERROR: DEFAULTERROR } );
-                postMessage({type:'call', id: id});
+                this.sender.callback(1, id);
             },
             
             onUpdate: function() {

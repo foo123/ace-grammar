@@ -197,7 +197,7 @@
                 //console.log('__init__ called '+id);
                 //console.log(grammar);
                 this.parser = getParser( parseGrammar( grammar ), { DEFAULT: DEFAULTSTYLE, ERROR: DEFAULTERROR } );
-                postMessage({type:'call', id: id});
+                this.sender.callback(1, id);
             },
             
             onUpdate: function() {

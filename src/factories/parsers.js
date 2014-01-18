@@ -157,7 +157,7 @@
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
-                                currentError = tokenizer.tn + " " + ((tokenizer.required) ? "is missing" : "syntax error");
+                                currentError = tokenizer.tn + ((tokenizer.required) ? " is missing" : " syntax error");
                                 break;
                             }
                             // optional
@@ -196,7 +196,7 @@
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
-                                currentError = tokenizer.tn + " " + ((tokenizer.required) ? "is missing" : "syntax error");
+                                currentError = tokenizer.tn + ((tokenizer.required) ? " is missing" : " syntax error");
                                 break;
                             }
                             // optional
