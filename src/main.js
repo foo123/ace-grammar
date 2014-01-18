@@ -36,7 +36,7 @@
     [/DOC_MARKDOWN]**/
     DEFAULTSTYLE = "text";
     DEFAULTERROR = "invalid";
-    var AceGrammar = isWorker ? AceWorker : {
+    var AceGrammar = {
         
         VERSION : "@@VERSION@@",
         

@@ -26,8 +26,7 @@
     ./src/factories/matchers.js
     ./src/factories/tokenizers.js
     ./src/factories/parsers.js
-    # IN PROGRESS
-    #./src/factories/workers.js
+    ./src/factories/workers.js
     ./src/main.js
     !tpl:umd-footer.tpl.js  # include a umd-footer template
 
@@ -40,7 +39,7 @@
 # do any replacements to the source (orderedmap)
 @REPLACE =[{}]
 
-    "@@VERSION@@" = "0.6"
+    "@@VERSION@@" = "0.6.1"
     
     "@@MODULE_NAME@@" = "AceGrammar"
     

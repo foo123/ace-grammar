@@ -1,10 +1,11 @@
     
     // ace supposed to be available
-    var _ace = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; } }, ace_require = _ace.require;
+    var _ace = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; }, config: {} }, ace_require = _ace.require, ace_config = _ace.config;
     
     //
     // parser factories
     var
+        WorkerClient = ace_require("ace/worker/worker_client").WorkerClient,
         AceRange = ace_require('ace/range').Range || Object,
         // support indentation/behaviours/comments toggle
         AceTokenizer = ace_require('ace/tokenizer').Tokenizer || Object,
@@ -432,8 +433,6 @@
             return new AceParser(grammar, LOCALS);
         },
         
-        WorkerClient,
-        
         getAceMode = function(parser, grammar) {
             
             var mode;
@@ -450,23 +449,27 @@
                 // the custom Parser/Tokenizer
                 getTokenizer: function() { return parser; },
                 
-                supportAnnotations: false,
+                supportAnnotations: true,
                 
                 //HighlightRules: null,
                 //$behaviour: parser.$behaviour || null,
 
                 createWorker: function(session) {
-                    // TODO, IN PROGRESS
-                    return null;
-                    /*
                     if ( !mode.supportAnnotations ) return null;
                     
-                    var worker = new AceWorkerClient(['ace'], thisPath.file, "AceGrammar");
+                    // add this worker as an ace custom module
+                    ace_config.setModuleUrl("ace/grammar_worker", thisPath.file);
+                    
+                    var worker = new WorkerClient(['ace'], "ace/grammar_worker", 'AceGrammarWorker');
+                    
+                    worker.attachToDocument(session.getDocument());
                     
                     // create a worker for this grammar
                     worker.call('__init__', [grammar], function(){
+                        //console.log('__init__ returned');
                         // hook worker to enable error annotations
                         worker.on("error", function(e) {
+                            //console.log(e.data);
                             session.setAnnotations(e.data);
                         });
 
@@ -474,10 +477,9 @@
                             session.clearAnnotations();
                         });
                     });
-                    worker.attachToDocument(session.getDocument());
                     
                     return worker;
-                    */
+                    
                 },
                 
                 transformAction: function(state, action, editor, session, param) { },
