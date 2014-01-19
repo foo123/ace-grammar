@@ -181,7 +181,7 @@
                 // http://nodejs.org/docs/latest/api/globals.html#globals_filename
                 // this should hold the current file in node
                 file = __filename;
-                return { path: __dirname, file: __filename };
+                return { path: __dirname, file: __filename, root: __dirname };
             }
             else if ( isWorker )
             {
@@ -192,14 +192,15 @@
             else if ( isBrowser )
             {
                 // get last script (should be the current one) in browser
+                var root = document.location.href.split('#')[0].split('?')[0].split('/').slice(0, -1).join('/');
                 var scripts;
                 if ((scripts = document.getElementsByTagName('script')) && scripts.length) 
                     file = scripts[scripts.length - 1].src;
             }
             
             if ( file )
-                return { path: file.split('/').slice(0, -1).join('/'), file: file };
-            return { path: null, file: null };
+                return { path: file.split('/').slice(0, -1).join('/'), file: file, root: root };
+            return { path: null, file: null, root: root };
         },
         thisPath = getCurrentPath()
     ;

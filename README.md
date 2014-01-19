@@ -5,7 +5,7 @@ __Transform a JSON grammar into an ACE syntax-highlight parser__
 
 
 
-A simple and light-weight ( ~ <del>15kB</del> minified) [ACE](https://github.com/ajaxorg/ace) add-on
+A simple and light-weight ( ~ 20kB minified) [ACE](https://github.com/ajaxorg/ace) add-on
 
 to generate syntax-highlight parsers (ace modes) from a grammar specification in JSON format.
 
@@ -227,6 +227,9 @@ Result:
 
 ![xml-grammar](/test/grammar-xml.png)
 
+####grammar annotations
+
+![grammar-annotations-xml](/test/grammar-annotations-xml.png)
 
 
 

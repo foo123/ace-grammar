@@ -1,16 +1,55 @@
     
     // ace supposed to be available
-    var _ace = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; }, config: {} }, ace_require = _ace.require, ace_config = _ace.config;
+    var _ace = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; }, config: {} }, 
+        ace_require = _ace.require, ace_config = _ace.config
+    ;
     
     //
     // parser factories
     var
-        WorkerClient = ace_require("ace/worker/worker_client").WorkerClient,
-        AceRange = ace_require('ace/range').Range || Object,
-        // support indentation/behaviours/comments toggle
-        AceTokenizer = ace_require('ace/tokenizer').Tokenizer || Object,
-        AceTokenIterator = ace_require('ace/token_iterator').TokenIterator || Object,
-        AceParser = Class(AceTokenizer, {
+        AceWorkerClient = Class(ace_require("ace/worker/worker_client").WorkerClient || Object, {
+            constructor: function(topLevelNamespaces, mod, classname) {
+                var ayto = this, require = ace_require, config = ace_config;
+                ayto.$sendDeltaQueue = ayto.$sendDeltaQueue.bind(ayto);
+                ayto.changeListener = ayto.changeListener.bind(ayto);
+                ayto.onMessage = ayto.onMessage.bind(ayto);
+                if (require.nameToUrl && !require.toUrl)
+                    require.toUrl = require.nameToUrl;
+
+                var workerUrl;
+                if (config.get("packaged") || !require.toUrl) {
+                    workerUrl = config.moduleUrl(mod, "worker");
+                } else {
+                    var normalizePath = ayto.$normalizePath;
+                    workerUrl = normalizePath(require.toUrl("ace/worker/worker.js", null, "_"));
+
+                    var tlns = {};
+                    topLevelNamespaces.forEach(function(ns) {
+                        tlns[ns] = normalizePath(require.toUrl(ns, null, "_").replace(/(\.js)?(\?.*)?$/, ""));
+                    });
+                }
+                
+                ayto.$worker = new Worker(workerUrl);
+                
+                ayto.$worker.postMessage({
+                    load: true,
+                    ace_worker_base: thisPath.root + '/' + ace_config.moduleUrl("ace/worker/json")
+                });
+
+                ayto.$worker.postMessage({
+                    init : true,
+                    tlns: tlns,
+                    module: mod,
+                    classname: classname
+                });
+
+                ayto.callbackId = 1;
+                ayto.callbacks = {};
+
+                ayto.$worker.onmessage = ayto.onMessage;
+            }
+        }),
+        AceParser = Class(ace_require('ace/tokenizer').Tokenizer || Object, {
             
             constructor: function(grammar, LOC) {
                 var ayto = this;
@@ -242,22 +281,24 @@
             },
             
             tCL : function(state, session, startRow, endRow) {
-                var ayto = this;
-                var doc = session.doc;
-                var ignoreBlankLines = true;
-                var shouldRemove = true;
-                var minIndent = Infinity;
-                var tabSize = session.getTabSize();
-                var insertAtTabStop = false;
+                var ayto = this,
+                    doc = session.doc,
+                    ignoreBlankLines = true,
+                    shouldRemove = true,
+                    minIndent = Infinity,
+                    tabSize = session.getTabSize(),
+                    insertAtTabStop = false
+                ;
                 
                 if ( !ayto.LC ) 
                 {
                     if ( !ayto.BC ) return false;
                     
-                    var lineCommentStart = ayto.BC.start;
-                    var lineCommentEnd = ayto.BC.end;
-                    var regexpStart = ayto.rxStart;
-                    var regexpEnd = ayto.rxEnd;
+                    var lineCommentStart = ayto.BC.start,
+                        lineCommentEnd = ayto.BC.end,
+                        regexpStart = ayto.rxStart,
+                        regexpEnd = ayto.rxEnd
+                    ;
 
                     var comment = function(line, i) {
                         if (testRemove(line, i)) return;
@@ -287,9 +328,10 @@
                 } 
                 else 
                 {
-                    var lineCommentStart = (T_ARRAY == get_type(ayto.LC)) ? ayto.LC[0] : ayto.LC;
-                    var regexpLine = ayto.rxLine;
-                    var commentWithSpace = lineCommentStart + " ";
+                    var lineCommentStart = (T_ARRAY == get_type(ayto.LC)) ? ayto.LC[0] : ayto.LC,
+                        regexpLine = ayto.rxLine,
+                        commentWithSpace = lineCommentStart + " "
+                    ;
                     
                     insertAtTabStop = session.getUseSoftTabs();
 
@@ -359,16 +401,19 @@
             },
 
             tBC : function(state, session, range, cursor) {
-                var ayto = this;
-                var comment = ayto.BC;
+                var ayto = this, 
+                    TokenIterator = ace_require('ace/token_iterator').TokenIterator,
+                    Range = ace_require('ace/range').Range,
+                    comment = ayto.BC, iterator, token, sel,
+                    initialRange, startRow, colDiff
+                ;
                 if (!comment) return;
 
-                var iterator = new AceTokenIterator(session, cursor.row, cursor.column);
-                var token = iterator.getCurrentToken();
+                iterator = new TokenIterator(session, cursor.row, cursor.column);
+                token = iterator.getCurrentToken();
 
-                var sel = session.selection;
-                var initialRange = session.selection.toOrientedRange();
-                var startRow, colDiff;
+                sel = session.selection;
+                initialRange = sel.toOrientedRange();
 
                 if (token && /comment/.test(token.type)) 
                 {
@@ -380,14 +425,14 @@
                         {
                             var row = iterator.getCurrentTokenRow();
                             var column = iterator.getCurrentTokenColumn() + i;
-                            startRange = new AceRange(row, column, row, column + comment.start.length);
+                            startRange = new Range(row, column, row, column + comment.start.length);
                             break;
                         }
                         token = iterator.stepBackward();
                     };
 
-                    var iterator = new AceTokenIterator(session, cursor.row, cursor.column);
-                    var token = iterator.getCurrentToken();
+                    iterator = new TokenIterator(session, cursor.row, cursor.column);
+                    token = iterator.getCurrentToken();
                     while (token && /comment/.test(token.type)) 
                     {
                         var i = token.value.indexOf(comment.end);
@@ -395,7 +440,7 @@
                         {
                             var row = iterator.getCurrentTokenRow();
                             var column = iterator.getCurrentTokenColumn() + i;
-                            endRange = new AceRange(row, column, row, column + comment.end.length);
+                            endRange = new Range(row, column, row, column + comment.end.length);
                             break;
                         }
                         token = iterator.stepForward();
@@ -436,6 +481,7 @@
         getAceMode = function(parser, grammar) {
             
             var mode;
+            
             // ACE-compatible Mode
             return mode = {
                 /*
@@ -460,13 +506,13 @@
                     // add this worker as an ace custom module
                     ace_config.setModuleUrl("ace/grammar_worker", thisPath.file);
                     
-                    var worker = new WorkerClient(['ace'], "ace/grammar_worker", 'AceGrammarWorker');
+                    var worker = new AceWorkerClient(['ace'], "ace/grammar_worker", 'AceGrammarWorker');
                     
                     worker.attachToDocument(session.getDocument());
                     
                     // create a worker for this grammar
-                    worker.call('__init__', [grammar], function(){
-                        //console.log('__init__ returned');
+                    worker.call('Init', [grammar], function(){
+                        //console.log('Init returned');
                         // hook worker to enable error annotations
                         worker.on("error", function(e) {
                             //console.log(e.data);
