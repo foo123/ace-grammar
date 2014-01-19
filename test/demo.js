@@ -1,7 +1,8 @@
-function ace_grammar_demo(_editor, /*options, grammar,*/ mode, code)
+function ace_grammar_demo(_editor, code, grammar)
 {
     var editor = ace.edit(_editor);
-    
+    // 2. parse the grammar into an ACE syntax-highlight mode
+    var mode = AceGrammar.getMode( grammar );
     var Editor = ace.require("ace/editor").Editor;
 
     // editor commands
@@ -91,7 +92,11 @@ function ace_grammar_demo(_editor, /*options, grammar,*/ mode, code)
         }
     };
     ace.config.defineOptions(Editor.prototype, "editor", options);
-
+    
+    // enable syntax validation
+    mode.supportGrammarAnnotations = true;
+    
+    // 3. use it with ACE
     ace.config.loadModule("ace/ext/language_tools", function() {
         
         editor.setOptions({ 

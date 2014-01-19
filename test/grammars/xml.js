@@ -94,7 +94,10 @@ var xml_grammar = {
         ],
         
         // tags
-        "startTag" : "RegExp::<[_a-zA-Z][_a-zA-Z0-9\\-]*",
+        "startTag" : { 
+            "expects": "closeTag",
+            "tokens": "RegExp::<[_a-zA-Z][_a-zA-Z0-9\\-]*"
+        },
         
         "endTag" : ">",
         

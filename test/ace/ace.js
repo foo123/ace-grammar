@@ -16194,7 +16194,7 @@ var WorkerClient = function(topLevelNamespaces, mod, classname) {
             tlns[ns] = normalizePath(require.toUrl(ns, null, "_").replace(/(\.js)?(\?.*)?$/, ""));
         });
     }
-
+    
     this.$worker = new Worker(workerUrl);
     this.$worker.postMessage({
         init : true,

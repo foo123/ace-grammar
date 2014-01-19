@@ -7,7 +7,7 @@
     //
     // parser factories
     var
-        AceWorkerClient = Class(ace_require("ace/worker/worker_client").WorkerClient || Object, {
+        AceWorkerClient = Class(ace_require("ace/worker/worker_client").WorkerClient, {
             constructor: function(topLevelNamespaces, mod, classname) {
                 var ayto = this, require = ace_require, config = ace_config;
                 ayto.$sendDeltaQueue = ayto.$sendDeltaQueue.bind(ayto);
@@ -33,7 +33,7 @@
                 
                 ayto.$worker.postMessage({
                     load: true,
-                    ace_worker_base: thisPath.root + '/' + ace_config.moduleUrl("ace/worker/json")
+                    ace_worker_base: thisPath.base + '/' + ace_config.moduleUrl("ace/worker/json")
                 });
 
                 ayto.$worker.postMessage({
@@ -49,10 +49,10 @@
                 ayto.$worker.onmessage = ayto.onMessage;
             }
         }),
-        AceParser = Class(ace_require('ace/tokenizer').Tokenizer || Object, {
+        AceParser = Class(ace_require('ace/tokenizer').Tokenizer, {
             
             constructor: function(grammar, LOC) {
-                var ayto = this;
+                var ayto = this, rxLine;
                 // support comments toggle
                 ayto.LC = grammar.Comments.line || null;
                 ayto.BC = (grammar.Comments.block) ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
@@ -60,11 +60,11 @@
                 {
                     if ( T_ARRAY & get_type(ayto.LC) ) 
                     {
-                        var rxLine = ayto.LC.map( escRegexp ).join( "|" );
+                        rxLine = ayto.LC.map( escRegexp ).join( "|" );
                     } 
                     else 
                     {
-                        var rxLine = escRegexp( ayto.LC );
+                        rxLine = escRegexp( ayto.LC );
                     }
                     ayto.rxLine = new RegExp("^(\\s*)(?:" + rxLine + ") ?");
                 }
@@ -97,8 +97,7 @@
 
             parse: function(code) {
                 code = code || "";
-                var lines = code.split(/\r\n|\r|\n/g), l = lines.length, i;
-                var tokens = [], data;
+                var lines = code.split(/\r\n|\r|\n/g), l = lines.length, i, tokens = [], data;
                 data = { state: new ParserState( ), tokens: null };
                 
                 for (i=0; i<l; i++)
@@ -196,7 +195,7 @@
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
-                                currentError = tokenizer.tn + ((tokenizer.required) ? " is missing" : " syntax error");
+                                currentError = getError( tokenizer );
                                 break;
                             }
                             // optional
@@ -235,7 +234,7 @@
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
-                                currentError = tokenizer.tn + ((tokenizer.required) ? " is missing" : " syntax error");
+                                currentError = getError( tokenizer );
                                 break;
                             }
                             // optional
@@ -287,7 +286,8 @@
                     shouldRemove = true,
                     minIndent = Infinity,
                     tabSize = session.getTabSize(),
-                    insertAtTabStop = false
+                    insertAtTabStop = false,
+                    comment, uncomment, testRemove, shouldInsertSpace
                 ;
                 
                 if ( !ayto.LC ) 
@@ -300,7 +300,7 @@
                         regexpEnd = ayto.rxEnd
                     ;
 
-                    var comment = function(line, i) {
+                    comment = function(line, i) {
                         if (testRemove(line, i)) return;
                         if (!ignoreBlankLines || /\S/.test(line)) 
                         {
@@ -309,7 +309,7 @@
                         }
                     };
 
-                    var uncomment = function(line, i) {
+                    uncomment = function(line, i) {
                         var m;
                         if (m = line.match(regexpEnd))
                             doc.removeInLine(i, line.length - m[0].length, line.length);
@@ -317,7 +317,7 @@
                             doc.removeInLine(i, m[1].length, m[0].length);
                     };
 
-                    var testRemove = function(line, row) {
+                    testRemove = function(line, row) {
                         if (regexpStart.test(line)) return true;
                         var tokens = session.getTokens(row);
                         for (var i = 0; i < tokens.length; i++) 
@@ -330,20 +330,21 @@
                 {
                     var lineCommentStart = (T_ARRAY == get_type(ayto.LC)) ? ayto.LC[0] : ayto.LC,
                         regexpLine = ayto.rxLine,
-                        commentWithSpace = lineCommentStart + " "
+                        commentWithSpace = lineCommentStart + " ",
+                        minEmptyLength
                     ;
                     
                     insertAtTabStop = session.getUseSoftTabs();
 
-                    var uncomment = function(line, i) {
-                        var m = line.match(regexpLine);
+                    uncomment = function(line, i) {
+                        var m = line.match(regexpLine), start, end;
                         if (!m) return;
-                        var start = m[1].length, end = m[0].length;
+                        start = m[1].length; end = m[0].length;
                         if (!shouldInsertSpace(line, start, end) && m[0][end - 1] == " ")  end--;
                         doc.removeInLine(i, start, end);
                     };
                     
-                    var comment = function(line, i) {
+                    comment = function(line, i) {
                         if (!ignoreBlankLines || /\S/.test(line)) 
                         {
                             if (shouldInsertSpace(line, minIndent, minIndent))
@@ -353,15 +354,15 @@
                         }
                     };
                     
-                    var testRemove = function(line, i) {
+                    testRemove = function(line, i) {
                         return regexpLine.test(line);
                     };
 
-                    var shouldInsertSpace = function(line, before, after) {
+                    shouldInsertSpace = function(line, before, after) {
                         var spaces = 0;
                         while (before-- && line.charAt(before) == " ") spaces++;
                         if (spaces % tabSize != 0) return false;
-                        var spaces = 0;
+                        spaces = 0;
                         while (line.charAt(after++) == " ") spaces++;
                         if (tabSize > 2)  return spaces % tabSize != tabSize - 1;
                         else  return spaces % tabSize == 0;
@@ -372,7 +373,7 @@
                 function iterate( applyMethod ) { for (var i=startRow; i<=endRow; i++) applyMethod(doc.getLine(i), i); }
 
 
-                var minEmptyLength = Infinity;
+                minEmptyLength = Infinity;
                 
                 iterate(function(line, i) {
                     var indent = line.search(/\S/);
@@ -387,7 +388,7 @@
                     }
                 });
 
-                if (minIndent == Infinity) 
+                if (Infinity == minIndent) 
                 {
                     minIndent = minEmptyLength;
                     ignoreBlankLines = false;
@@ -405,7 +406,8 @@
                     TokenIterator = ace_require('ace/token_iterator').TokenIterator,
                     Range = ace_require('ace/range').Range,
                     comment = ayto.BC, iterator, token, sel,
-                    initialRange, startRow, colDiff
+                    initialRange, startRow, colDiff,
+                    startRange, endRange, i, row, column
                 ;
                 if (!comment) return;
 
@@ -417,14 +419,13 @@
 
                 if (token && /comment/.test(token.type)) 
                 {
-                    var startRange, endRange;
                     while (token && /comment/.test(token.type)) 
                     {
-                        var i = token.value.indexOf(comment.start);
+                        i = token.value.indexOf(comment.start);
                         if (i != -1) 
                         {
-                            var row = iterator.getCurrentTokenRow();
-                            var column = iterator.getCurrentTokenColumn() + i;
+                            row = iterator.getCurrentTokenRow();
+                            column = iterator.getCurrentTokenColumn() + i;
                             startRange = new Range(row, column, row, column + comment.start.length);
                             break;
                         }
@@ -435,11 +436,11 @@
                     token = iterator.getCurrentToken();
                     while (token && /comment/.test(token.type)) 
                     {
-                        var i = token.value.indexOf(comment.end);
+                        i = token.value.indexOf(comment.end);
                         if (i != -1) 
                         {
-                            var row = iterator.getCurrentTokenRow();
-                            var column = iterator.getCurrentTokenColumn() + i;
+                            row = iterator.getCurrentTokenRow();
+                            column = iterator.getCurrentTokenColumn() + i;
                             endRange = new Range(row, column, row, column + comment.end.length);
                             break;
                         }
@@ -495,13 +496,14 @@
                 // the custom Parser/Tokenizer
                 getTokenizer: function() { return parser; },
                 
-                supportAnnotations: true,
+                supportGrammarAnnotations: 0,
                 
                 //HighlightRules: null,
                 //$behaviour: parser.$behaviour || null,
 
                 createWorker: function(session) {
-                    if ( !mode.supportAnnotations ) return null;
+                    
+                    if ( !mode.supportGrammarAnnotations ) return null;
                     
                     // add this worker as an ace custom module
                     ace_config.setModuleUrl("ace/grammar_worker", thisPath.file);

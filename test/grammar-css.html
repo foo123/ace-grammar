@@ -71,9 +71,8 @@ code {
         <script>
         // <![CDATA[
         
-        // 2. parse the grammar into an ACE syntax-highlight mode
-        // 3. use it with ACE
-        ace_grammar_demo("editor", AceGrammar.getMode( css_grammar ), document.getElementById("code").value);
+        // use it
+        ace_grammar_demo("editor", document.getElementById("code").value, css_grammar);
 
         // ]]>
         </script>
