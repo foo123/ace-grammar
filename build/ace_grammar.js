@@ -1,7 +1,7 @@
 /**
 *
 *   AceGrammar
-*   @version: 0.6.3
+*   @version: 0.6.4
 *
 *   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
@@ -390,15 +390,32 @@
         getRegexp = function(r, rid, cachedRegexes)  {
             if ( !r || (T_NUM == get_type(r)) ) return r;
             
-            var l = (rid) ? (rid.length||0) : 0;
+            var l = (rid) ? (rid.length||0) : 0, i;
             
             if ( l && rid == r.substr(0, l) ) 
             {
-                var regexID = "^(" + r.substr(l) + ")", regex, chars, analyzer;
+                var regexSource = r.substr(l), delim = regexSource[0], flags = '',
+                    regexBody, regexID, regex, chars, analyzer, i, ch
+                ;
+                
+                // allow regex to have delimiters and flags
+                // delimiter is defined as the first character after the regexID
+                i = regexSource.length;
+                while ( i-- )
+                {
+                    ch = regexSource[i];
+                    if (delim == ch) 
+                        break;
+                    else if ('i' == ch.toLowerCase() ) 
+                        flags = 'i';
+                }
+                regexBody = regexSource.substring(1, i);
+                regexID = "^(" + regexBody + ")";
+                //console.log([regexBody, flags]);
                 
                 if ( !cachedRegexes[ regexID ] )
                 {
-                    regex = new RegExp( regexID );
+                    regex = new RegExp( regexID, flags );
                     analyzer = new RegexAnalyzer( regex ).analyze();
                     chars = analyzer.getPeekChars();
                     if ( !Keys(chars.peek).length )  chars.peek = null;
@@ -2353,7 +2370,7 @@
   /**
 *
 *   AceGrammar
-*   @version: 0.6.3
+*   @version: 0.6.4
 *
 *   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
@@ -2390,7 +2407,7 @@
     DEFAULTERROR = "invalid";
     var AceGrammar = {
         
-        VERSION : "0.6.3",
+        VERSION : "0.6.4",
         
         // extend a grammar using another base grammar
         /**[DOC_MARKDOWN]
