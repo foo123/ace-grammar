@@ -59,13 +59,11 @@
                 if ( ayto.LC )
                 {
                     if ( T_ARRAY & get_type(ayto.LC) ) 
-                    {
                         rxLine = ayto.LC.map( escRegexp ).join( "|" );
-                    } 
+                    
                     else 
-                    {
                         rxLine = escRegexp( ayto.LC );
-                    }
+                    
                     ayto.rxLine = new RegExp("^(\\s*)(?:" + rxLine + ") ?");
                 }
                 if ( ayto.BC )
@@ -119,7 +117,7 @@
                 
                 aceTokens = []; 
                 stream = new ParserStream( line );
-                state = (state) ? state.clone( ) : new ParserState( );
+                state = (state) ? state.clone( 1 ) : new ParserState( 1, 1 );
                 state.l = 1+row;
                 stack = state.stack;
                 token = { type: null, value: "" };
@@ -135,14 +133,14 @@
                     if ( type && type !== token.type )
                     {
                         if ( token.type ) aceTokens.push( token );
-                        token = { type: type, value: stream.cur(), error: currentError };
+                        token = { type: type, value: stream.cur(1), error: currentError };
                         currentError = null;
-                        stream.sft();
+                        //stream.sft();
                     }
                     else if ( token.type )
                     {
-                        token.value += stream.cur();
-                        stream.sft();
+                        token.value += stream.cur(1);
+                        //stream.sft();
                     }
                     
                     // check for non-space tokenizer before parsing space
@@ -185,17 +183,18 @@
                         if ( false === type )
                         {
                             // error
-                            if ( tokenizer.ERR || tokenizer.required )
+                            if ( tokenizer.ERR || tokenizer.REQ )
                             {
                                 // empty the stack
-                                stack.length = 0;
+                                //stack.length = 0;
+                                emptyStack(stack, tokenizer.sID);
                                 // skip this character
                                 stream.nxt();
                                 // generate error
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
-                                currentError = getError( tokenizer );
+                                currentError = tokenizer.err();
                                 break;
                             }
                             // optional
@@ -224,17 +223,18 @@
                         if ( false === type )
                         {
                             // error
-                            if ( tokenizer.ERR || tokenizer.required )
+                            if ( tokenizer.ERR || tokenizer.REQ )
                             {
                                 // empty the stack
-                                stack.length = 0;
+                                //stack.length = 0;
+                                emptyStack(stack, tokenizer.sID);
                                 // skip this character
                                 stream.nxt();
                                 // generate error
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
-                                currentError = getError( tokenizer );
+                                currentError = tokenizer.err();
                                 break;
                             }
                             // optional
@@ -263,12 +263,12 @@
                 if ( type && type !== token.type )
                 {
                     if ( token.type ) aceTokens.push( token );
-                    aceTokens.push( { type: type, value: stream.cur(), error: currentError } );
+                    aceTokens.push( { type: type, value: stream.cur(1), error: currentError } );
                     currentError = null;
                 }
                 else if ( token.type )
                 {
-                    token.value += stream.cur();
+                    token.value += stream.cur(1);
                     aceTokens.push( token );
                 }
                 token = null;

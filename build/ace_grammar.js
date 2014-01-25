@@ -1,7 +1,7 @@
 /**
 *
 *   AceGrammar
-*   @version: 0.6.5
+*   @version: 0.6.6
 *
 *   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
@@ -485,47 +485,50 @@
     //
     // Stream Class
     var
+        Max = Math.max, spaceRegex = /^[\s\u00a0]+/,
         // a wrapper-class to manipulate a string as a stream, based on Codemirror's StringStream
         ParserStream = Class({
             
             constructor: function( line ) {
-                this.string = (line) ? ''+line : '';
-                this.start = this.pos = 0;
-                this._ = null;
+                var ayto = this;
+                ayto._ = null;
+                ayto.s = (line) ? ''+line : '';
+                ayto.start = ayto.pos = 0;
             },
             
             // abbreviations used for optimal minification
             
             _: null,
-            string: '',
+            s: '',
             start: 0,
             pos: 0,
             
             fromStream: function( _ ) {
-                this._ = _;
-                this.string = ''+_.string;
-                this.start = _.start;
-                this.pos = _.pos;
-                return this;
+                var ayto = this;
+                ayto._ = _;
+                ayto.s = ''+_.string;
+                ayto.start = _.start;
+                ayto.pos = _.pos;
+                return ayto;
             },
             
-            toString: function() { return this.string; },
+            toString: function() { return this.s; },
             
             // string start-of-line?
             sol: function( ) { return 0 == this.pos; },
             
             // string end-of-line?
-            eol: function( ) { return this.pos >= this.string.length; },
+            eol: function( ) { return this.pos >= this.s.length; },
             
             // char match
             chr : function(pattern, eat) {
-                var ch = this.string.charAt(this.pos) || null;
+                var ayto = this, ch = ayto.s.charAt(ayto.pos) || null;
                 if (ch && pattern == ch) 
                 {
                     if (false !== eat) 
                     {
-                        this.pos += 1;
-                        if ( this._ ) this._.pos = this.pos;
+                        ayto.pos += 1;
+                        if ( ayto._ ) ayto._.pos = ayto.pos;
                     }
                     return ch;
                 }
@@ -534,13 +537,13 @@
             
             // char list match
             chl : function(pattern, eat) {
-                var ch = this.string.charAt(this.pos) || null;
+                var ayto = this, ch = ayto.s.charAt(ayto.pos) || null;
                 if ( ch && (-1 < pattern.indexOf( ch )) ) 
                 {
                     if (false !== eat) 
                     {
-                        this.pos += 1;
-                        if ( this._ ) this._.pos = this.pos;
+                        ayto.pos += 1;
+                        if ( ayto._ ) ayto._.pos = ayto.pos;
                     }
                     return ch;
                 }
@@ -549,18 +552,18 @@
             
             // string match
             str : function(pattern, startsWith, eat) {
-                var pos = this.pos, str = this.string, ch = str.charAt(pos) || null;
+                var ayto = this, len, pos = ayto.pos, str = ayto.s, ch = str.charAt(pos) || null;
                 if ( ch && startsWith[ ch ] )
                 {
-                    var len = pattern.length, s = str.substr(pos, len);
-                    if (pattern == s) 
+                    len = pattern.length; 
+                    if (pattern == str.substr(pos, len)) 
                     {
                         if (false !== eat) 
                         {
-                            this.pos += len;
-                            if ( this._ )  this._.pos = this.pos;
+                            ayto.pos += len;
+                            if ( ayto._ ) ayto._.pos = ayto.pos;
                         }
-                        return s;
+                        return pattern;
                     }
                 }
                 return false;
@@ -568,15 +571,15 @@
             
             // regex match
             rex : function(pattern, startsWith, notStartsWith, group, eat) {
-                var pos = this.pos, str = this.string, ch = str.charAt(pos) || null;
+                var ayto = this, match, pos = ayto.pos, str = ayto.s, ch = str.charAt(pos) || null;
                 if ( ch && ( startsWith && startsWith[ ch ] ) || ( notStartsWith && !notStartsWith[ ch ] ) )
                 {
-                    var match = str.slice(pos).match(pattern);
+                    match = str.slice(pos).match(pattern);
                     if (!match || match.index > 0) return false;
                     if (false !== eat) 
                     {
-                        this.pos += match[group||0].length;
-                        if ( this._ ) this._.pos = this.pos;
+                        ayto.pos += match[group||0].length;
+                        if ( ayto._ ) ayto._.pos = ayto.pos;
                     }
                     return match;
                 }
@@ -585,49 +588,55 @@
 
             // skip to end
             end: function() {
-                this.pos = this.string.length;
-                if ( this._ ) this._.pos = this.pos;
-                return this;
+                var ayto = this;
+                ayto.pos = ayto.s.length;
+                if ( ayto._ ) ayto._.pos = ayto.pos;
+                return ayto;
             },
 
             // get next char
             nxt: function( ) {
-                if (this.pos < this.string.length)
+                var ayto = this, ch, s = ayto.s;
+                if (ayto.pos < s.length)
                 {
-                    var ch = this.string.charAt(this.pos++) || null;
-                    if ( this._ ) this._.pos = this.pos;
+                    ch = s.charAt(ayto.pos++) || null;
+                    if ( ayto._ ) ayto._.pos = ayto.pos;
                     return ch;
                 }
             },
             
             // back-up n steps
             bck: function( n ) {
-                this.pos -= n;
-                if ( 0 > this.pos ) this.pos = 0;
-                if ( this._ )  this._.pos = this.pos;
-                return this;
+                var ayto = this;
+                ayto.pos = Max(0, ayto.pos - n);
+                if ( ayto._ ) ayto._.pos = ayto.pos;
+                return ayto;
             },
             
             // back-track to pos
             bck2: function( pos ) {
-                this.pos = pos;
-                if ( 0 > this.pos ) this.pos = 0;
-                if ( this._ ) this._.pos = this.pos;
-                return this;
+                var ayto = this;
+                ayto.pos = Max(0, pos);
+                if ( ayto._ ) ayto._.pos = ayto.pos;
+                return ayto;
             },
             
             // eat space
             spc: function( ) {
-                var start = this.pos, pos = this.pos, s = this.string;
-                while (/[\s\u00a0]/.test(s.charAt(pos))) ++pos;
-                this.pos = pos;
-                if ( this._ ) this._.pos = this.pos;
-                return this.pos > start;
+                var ayto = this, m, start = ayto.pos, s = ayto.s.slice(start);
+                if ( m = s.match( spaceRegex ) ) 
+                {
+                    ayto.pos += m[0].length;
+                    if ( ayto._ ) ayto._.pos = ayto.pos;
+                }
+                return ayto.pos > start;
             },
             
             // current stream selection
-            cur: function( ) {
-                return this.string.slice(this.start, this.pos);
+            cur: function( andShiftStream ) {
+                var ayto = this, ret = ayto.s.slice(ayto.start, ayto.pos);
+                if ( andShiftStream ) ayto.start = ayto.pos;
+                return ret;
             },
             
             // move/shift stream
@@ -643,18 +652,22 @@
     var
         ParserState = Class({
             
-            constructor: function( line ) {
-                //this.id = 0; //new Date().getTime();
-                this.l = line || 0;
-                this.stack = [];
-                this.t = T_DEFAULT;
-                this.r = '0';
-                this.inBlock = null;
-                this.endBlock = null;
+            constructor: function( line, unique ) {
+                var ayto = this;
+                // this enables unique state "names"
+                // thus forces highlight to update
+                // however updates also occur when no update necessary ??
+                ayto.id = unique ? new Date().getTime() : 0;
+                ayto.l = line || 0;
+                ayto.stack = [];
+                ayto.t = T_DEFAULT;
+                ayto.r = '0';
+                ayto.inBlock = null;
+                ayto.endBlock = null;
             },
             
             // state id
-            //id: 0,
+            id: 0,
             // state current line
             l: 0,
             // state token stack
@@ -668,24 +681,26 @@
             // state endBlock for current block
             endBlock: null,
             
-            clone: function() {
-                var copy = new this.$class( this.l );
-                copy.t = this.t;
-                copy.r = this.r;
-                copy.stack = this.stack.slice();
-                copy.inBlock = this.inBlock;
-                copy.endBlock = this.endBlock;
-                return copy;
+            clone: function( unique ) {
+                var ayto = this, c = new ayto.$class( ayto.l, unique );
+                c.t = ayto.t;
+                c.r = ayto.r;
+                c.stack = ayto.stack.slice();
+                c.inBlock = ayto.inBlock;
+                c.endBlock = ayto.endBlock;
+                return c;
             },
             
             // used mostly for ACE which treats states as strings, 
             // make sure to generate a string which will cover most cases where state needs to be updated by the editor
             toString: function() {
-                //return ['', this.id, this.inBlock||'0'].join('_');
-                //return ['', this.id, this.t, this.r||'0', this.stack.length, this.inBlock||'0'].join('_');
-                //return ['', this.id, this.t, this.stack.length, this.inBlock||'0'].join('_');
-                //return ['', this.id, this.t, this.r||'0', this.inBlock||'0'].join('_');
-                return ['', this.l, this.t, this.r, this.inBlock||'0', this.stack.length].join('_');
+                var ayto = this;
+                //return ['', ayto.id, ayto.inBlock||'0'].join('_');
+                //return ['', ayto.id, ayto.t, ayto.r||'0', ayto.stack.length, ayto.inBlock||'0'].join('_');
+                //return ['', ayto.id, ayto.t, ayto.stack.length, ayto.inBlock||'0'].join('_');
+                //return ['', ayto.id, ayto.t, ayto.r||'0', ayto.inBlock||'0'].join('_');
+                //return ['', ayto.l, ayto.t, ayto.r, ayto.inBlock||'0', ayto.stack.length].join('_');
+                return ['', ayto.id, ayto.l, ayto.t, ayto.inBlock||'0'].join('_');
             }
         })
     ;
@@ -999,10 +1014,18 @@
     //
     // tokenizer factories
     var
-        getError = function(tokenizer) {
-            if (T_NONSPACE == tokenizer.tt) return "NONSPACE Required";
-            else if (T_EOL == tokenizer.tt) return "EOL Required";
-            return (tokenizer.required) ? ('Token Missing "'+tokenizer.tn+'"') : ('Syntax Error "'+tokenizer.tn+'"');
+        _id_ = 0, getId = function() { return ++_id_; },
+        emptyStack = function(stack, id) {
+            if (id)
+            {
+                while (stack.length && id == stack[stack.length-1].sID) 
+                    stack.pop();
+            }
+            else
+            {
+                stack.length = 0;
+            }
+            return stack;
         },
         
         SimpleToken = Class({
@@ -1013,11 +1036,13 @@
                 ayto.tn = name;
                 ayto.t = token;
                 ayto.r = style;
-                ayto.required = 0;
+                ayto.REQ = 0;
                 ayto.ERR = 0;
                 ayto.toClone = ['t', 'r'];
             },
             
+            // stack id
+            sID: null,
             // tokenizer/token name
             tn : null,
             // tokenizer type
@@ -1026,10 +1051,17 @@
             t : null,
             // tokenizer return val
             r : null,
-            required : 0,
+            REQ : 0,
             ERR : 0,
             toClone: null,
             
+            err : function() {
+                var tokenizer = this;
+                if (T_NONSPACE == tokenizer.tt) return "NONSPACE Required";
+                else if (T_EOL == tokenizer.tt) return "EOL Required";
+                return (tokenizer.REQ) ? ('Token Missing "'+tokenizer.tn+'"') : ('Syntax Error "'+tokenizer.tn+'"');
+            },
+        
             get : function( stream, state ) {
                 var ayto = this, token = ayto.t, type = ayto.tt;
                 // match EOL ( with possible leading spaces )
@@ -1046,8 +1078,8 @@
                 // match non-space
                 else if ( T_NONSPACE == type ) 
                 { 
-                    ayto.ERR = ( ayto.required && stream.spc() && !stream.eol() ) ? 1 : 0;
-                    ayto.required = 0;
+                    ayto.ERR = ( ayto.REQ && stream.spc() && !stream.eol() ) ? 1 : 0;
+                    ayto.REQ = 0;
                 }
                 // else match a simple token
                 else if ( token.get(stream) ) 
@@ -1060,14 +1092,16 @@
             },
             
             require : function(bool) { 
-                this.required = (bool) ? 1 : 0;
+                this.REQ = (bool) ? 1 : 0;
                 return this;
             },
             
-            push : function(stack, pos, token) {
-                if ( /*pos &&*/ stack.length ) stack.splice( pos, 0, token );
+            push : function(stack, pos, token, stackId) {
+                // associate a stack id with this token
+                // as part of a posible syntax sequence
+                if ( stackId ) token.sID = stackId;
+                if ( pos < stack.length ) stack.splice( pos, 0, token );
                 else stack.push( token );
-                return this;
             },
             
             clone : function() {
@@ -1079,8 +1113,7 @@
                 
                 if (toClone && toClone.length)
                 {
-                    toClonelen = toClone.length;
-                    for (i=0; i<toClonelen; i++)   
+                    for (i=0, toClonelen = toClone.length; i<toClonelen; i++)   
                         t[ toClone[i] ] = ayto[ toClone[i] ];
                 }
                 return t;
@@ -1126,7 +1159,7 @@
                 */
                 
                 // comments in general are not required tokens
-                if ( T_COMMENT == type ) ayto.required = 0;
+                if ( T_COMMENT == type ) ayto.REQ = 0;
                 
                 alreadyIn = 0;
                 if ( state.inBlock == thisBlock )
@@ -1154,7 +1187,7 @@
                     {
                         if ( alreadyIn && isEOLBlock && stream.sol() )
                         {
-                            ayto.required = 0;
+                            ayto.REQ = 0;
                             state.inBlock = null;
                             state.endBlock = null;
                             return false;
@@ -1162,7 +1195,7 @@
                         
                         if ( !alreadyIn )
                         {
-                            ayto.push( state.stack, stackPos, ayto.clone() );
+                            ayto.push( state.stack, stackPos, ayto.clone(), thisBlock );
                             state.t = type;
                             //state.r = ret; 
                             return ret;
@@ -1222,7 +1255,7 @@
                     }
                     else
                     {
-                        ayto.push( state.stack, stackPos, ayto.clone() );
+                        ayto.push( state.stack, stackPos, ayto.clone(), thisBlock );
                     }
                     
                     state.t = type;
@@ -1265,12 +1298,13 @@
             
                 var ayto = this, i, token, style, tokens = ayto.ts, n = tokens.length, 
                     found = ayto.found, min = ayto.min, max = ayto.max,
-                    tokensRequired = 0, streamPos, stackPos;
+                    tokensRequired = 0, streamPos, stackPos, stackId;
                 
                 ayto.ERR = 0;
-                ayto.required = 0;
+                ayto.REQ = 0;
                 streamPos = stream.pos;
                 stackPos = state.stack.length;
+                stackId = ayto.tn + '_' + getId();
                 
                 for (i=0; i<n; i++)
                 {
@@ -1284,20 +1318,20 @@
                         {
                             // push it to the stack for more
                             ayto.found = found;
-                            ayto.push( state.stack, stackPos, ayto.clone() );
+                            ayto.push( state.stack, stackPos, ayto.clone(), stackId );
                             ayto.found = 0;
                             return style;
                         }
                         break;
                     }
-                    else if ( token.required )
+                    else if ( token.REQ )
                     {
                         tokensRequired++;
                     }
                     if ( token.ERR ) stream.bck2( streamPos );
                 }
                 
-                ayto.required = found < min;
+                ayto.REQ = found < min;
                 ayto.ERR = found > max || (found < min && 0 < tokensRequired);
                 return false;
             }
@@ -1315,7 +1349,7 @@
                 var ayto = this, style, token, i, tokens = ayto.ts, n = tokens.length, 
                     tokensRequired = 0, tokensErr = 0, streamPos;
                 
-                ayto.required = 1;
+                ayto.REQ = 1;
                 ayto.ERR = 0;
                 streamPos = stream.pos;
                 
@@ -1324,7 +1358,7 @@
                     token = tokens[i].clone();
                     style = token.get(stream, state);
                     
-                    tokensRequired += (token.required) ? 1 : 0;
+                    tokensRequired += (token.REQ) ? 1 : 0;
                     
                     if ( false !== style )
                     {
@@ -1337,7 +1371,7 @@
                     }
                 }
                 
-                ayto.required = (tokensRequired > 0);
+                ayto.REQ = (tokensRequired > 0);
                 ayto.ERR = (n == tokensErr && tokensRequired > 0);
                 return false;
             }
@@ -1353,28 +1387,29 @@
             get : function( stream, state ) {
                 
                 var ayto = this, token, style, tokens = ayto.ts, n = tokens.length,
-                    streamPos, stackPos;
+                    streamPos, stackPos, stackId;
                 
-                ayto.required = 1;
+                ayto.REQ = 1;
                 ayto.ERR = 0;
                 streamPos = stream.pos;
                 stackPos = state.stack.length;
+                stackId = ayto.tn + '_' + getId();
                 token = tokens[ 0 ].clone().require( 1 );
                 style = token.get(stream, state);
                 
                 if ( false !== style )
                 {
                     for (var i=n-1; i>0; i--)
-                        ayto.push( state.stack, stackPos+n-i-1, tokens[ i ].clone().require( 1 ) );
+                        ayto.push( state.stack, stackPos+n-i-1, tokens[ i ].clone().require( 1 ), stackId );
                         
                     return style;
                 }
-                else if ( token.ERR /*&& token.required*/ )
+                else if ( token.ERR /*&& token.REQ*/ )
                 {
                     ayto.ERR = 1;
                     stream.bck2( streamPos );
                 }
-                else if ( token.required )
+                else if ( token.REQ )
                 {
                     ayto.ERR = 1;
                 }
@@ -1393,19 +1428,20 @@
             get : function( stream, state ) {
                 
                 var ayto = this, token, style, tokens = ayto.ts, n = tokens.length, 
-                    streamPos, stackPos;
+                    streamPos, stackPos, stackId;
                 
-                ayto.required = 0;
+                ayto.REQ = 0;
                 ayto.ERR = 0;
                 streamPos = stream.pos;
                 stackPos = state.stack.length;
+                stackId = ayto.tn + '_' + getId();
                 token = tokens[ 0 ].clone().require( 0 );
                 style = token.get(stream, state);
                 
                 if ( false !== style )
                 {
                     for (var i=n-1; i>0; i--)
-                        ayto.push( state.stack, stackPos+n-i-1, tokens[ i ].clone().require( 1 ) );
+                        ayto.push( state.stack, stackPos+n-i-1, tokens[ i ].clone().require( 1 ), stackId );
                     
                     return style;
                 }
@@ -1458,14 +1494,26 @@
                         // provide some defaults
                         type = (tok.type) ? tokenTypes[ tok.type.toUpperCase().replace('-', '').replace('_', '') ] : T_SIMPLE;
                         
-                        if ( (T_SIMPLE & type) && "" === tok.tokens )
+                        if ( T_SIMPLE & type )
                         {
-                            // NONSPACE Tokenizer
-                            token = new SimpleToken( tokenID, "", DEFAULTSTYLE );
-                            token.tt = T_NONSPACE;
-                            // pre-cache tokenizer to handle recursive calls to same tokenizer
-                            cachedTokens[ tokenID ] = token;
-                            return token;
+                            if ( "" === tok.tokens )
+                            {
+                                // NONSPACE Tokenizer
+                                token = new SimpleToken( tokenID, "", DEFAULTSTYLE );
+                                token.tt = T_NONSPACE;
+                                // pre-cache tokenizer to handle recursive calls to same tokenizer
+                                cachedTokens[ tokenID ] = token;
+                                return token;
+                            }
+                            else if ( null === tok.tokens )
+                            {
+                                // EOL Tokenizer
+                                token = new SimpleToken( tokenID, "", DEFAULTSTYLE );
+                                token.tt = T_EOL;
+                                // pre-cache tokenizer to handle recursive calls to same tokenizer
+                                cachedTokens[ tokenID ] = token;
+                                return token;
+                            }
                         }
             
                         tok.tokens = make_array( tok.tokens );
@@ -1730,13 +1778,11 @@
                 if ( ayto.LC )
                 {
                     if ( T_ARRAY & get_type(ayto.LC) ) 
-                    {
                         rxLine = ayto.LC.map( escRegexp ).join( "|" );
-                    } 
+                    
                     else 
-                    {
                         rxLine = escRegexp( ayto.LC );
-                    }
+                    
                     ayto.rxLine = new RegExp("^(\\s*)(?:" + rxLine + ") ?");
                 }
                 if ( ayto.BC )
@@ -1790,7 +1836,7 @@
                 
                 aceTokens = []; 
                 stream = new ParserStream( line );
-                state = (state) ? state.clone( ) : new ParserState( );
+                state = (state) ? state.clone( 1 ) : new ParserState( 1, 1 );
                 state.l = 1+row;
                 stack = state.stack;
                 token = { type: null, value: "" };
@@ -1806,14 +1852,14 @@
                     if ( type && type !== token.type )
                     {
                         if ( token.type ) aceTokens.push( token );
-                        token = { type: type, value: stream.cur(), error: currentError };
+                        token = { type: type, value: stream.cur(1), error: currentError };
                         currentError = null;
-                        stream.sft();
+                        //stream.sft();
                     }
                     else if ( token.type )
                     {
-                        token.value += stream.cur();
-                        stream.sft();
+                        token.value += stream.cur(1);
+                        //stream.sft();
                     }
                     
                     // check for non-space tokenizer before parsing space
@@ -1856,17 +1902,18 @@
                         if ( false === type )
                         {
                             // error
-                            if ( tokenizer.ERR || tokenizer.required )
+                            if ( tokenizer.ERR || tokenizer.REQ )
                             {
                                 // empty the stack
-                                stack.length = 0;
+                                //stack.length = 0;
+                                emptyStack(stack, tokenizer.sID);
                                 // skip this character
                                 stream.nxt();
                                 // generate error
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
-                                currentError = getError( tokenizer );
+                                currentError = tokenizer.err();
                                 break;
                             }
                             // optional
@@ -1895,17 +1942,18 @@
                         if ( false === type )
                         {
                             // error
-                            if ( tokenizer.ERR || tokenizer.required )
+                            if ( tokenizer.ERR || tokenizer.REQ )
                             {
                                 // empty the stack
-                                stack.length = 0;
+                                //stack.length = 0;
+                                emptyStack(stack, tokenizer.sID);
                                 // skip this character
                                 stream.nxt();
                                 // generate error
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
                                 rewind = 1;
-                                currentError = getError( tokenizer );
+                                currentError = tokenizer.err();
                                 break;
                             }
                             // optional
@@ -1934,12 +1982,12 @@
                 if ( type && type !== token.type )
                 {
                     if ( token.type ) aceTokens.push( token );
-                    aceTokens.push( { type: type, value: stream.cur(), error: currentError } );
+                    aceTokens.push( { type: type, value: stream.cur(1), error: currentError } );
                     currentError = null;
                 }
                 else if ( token.type )
                 {
-                    token.value += stream.cur();
+                    token.value += stream.cur(1);
                     aceTokens.push( token );
                 }
                 token = null;
@@ -2370,7 +2418,7 @@
   /**
 *
 *   AceGrammar
-*   @version: 0.6.5
+*   @version: 0.6.6
 *
 *   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
@@ -2407,7 +2455,7 @@
     DEFAULTERROR = "invalid";
     var AceGrammar = {
         
-        VERSION : "0.6.5",
+        VERSION : "0.6.6",
         
         // extend a grammar using another base grammar
         /**[DOC_MARKDOWN]
