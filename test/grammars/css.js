@@ -8,23 +8,24 @@ var css_grammar = {
     // Style model
     "Style" : {
         // lang token type  -> Editor (style) tag
-        "comment":      "comment",
-        "meta":         "attribute",
-        "meta2":        "constant",
-        "atom":         "support.constant",
-        "property":     "support.type",
-        "element":      "constant",
-        "url":          "constant",
-        "operator":     "operator",
-        "font":         "support.constant.fonts",
-        "cssID":        "keyword",
-        "cssClass":     "variable",
-        "cssPseudoElement": "string",
-        "identifier":   "variable",
-        "number":       "constant.numeric",
-        "hexcolor":      "constant.numeric",
-        "string":       "string",
-        "text":         "string"
+        "comment":         "comment",
+        "@atrule":         "constant",
+        "@import":         "constant",
+        "@keyframes":      "constant",
+        "@media":          "constant",
+        "identifier":      "variable",
+        "!important":      "attribute",
+        "CssAtom":         "support.constant",
+        "url":             "support.constant",
+        "format":          "support.constant",
+        "CssProperty":     "support.type",
+        "HtmlElement":     "constant",
+        "CssID":           "keyword",
+        "CssClass":        "variable",
+        "PseudoElement":   "string",
+        "number":          "constant.numeric",
+        "string":          "string",
+        "text":            "string"
     },
 
     
@@ -43,154 +44,105 @@ var css_grammar = {
             ]
         },
         
-        // some standard identifiers
-        "font" : {
-            // enable autocompletion for these tokens, with their associated token ID
-            "autocomplete" : true,
-            "tokens" : [
-                "arial", "tahoma", "courier"
-            ]
-        },
-        
-        "standard" : {
-            // enable autocompletion for these tokens, with their associated token ID
-            "autocomplete" : true,
-            "tokens" : [
-                "!important", "only"
-            ]
-        },
-        
-        // css ids
-        "cssID" : "RegExp::/#[_A-Za-z][_A-Za-z0-9]*/",
-        
-        // css classes
-        "cssClass" : "RegExp::/\\.[_A-Za-z][_A-Za-z0-9]*/",
-        
-        "cssPseudoElement" : "RegExp::/::?[_A-Za-z][_A-Za-z0-9]*/",
-        
-        // general identifiers
-        "identifier" : "RegExp::/[_A-Za-z][_A-Za-z0-9]*/",
-        
         // numbers, in order of matching
         "number" : [
-            // floats
-            "RegExp::/\\d*\\.\\d+(e[\\+\\-]?\\d+)?(em|px|%|pt)?/",
-            "RegExp::/\\d+\\.\\d*(em|px|%|pt)?/",
-            "RegExp::/\\.\\d+(em|px|%|pt)?/",
             // integers
             // decimal
-            "RegExp::/[1-9]\\d*(e[\\+\\-]?\\d+)?(em|px|%|pt)?/",
-            // just zero
-            "RegExp::/0(?![\\dx])(em|px|%|pt)?/"
+            "RegExp::/[0-9]\\d*(rem|em|px|%|pt|in|s)?/i",
+            // floats
+            "RegExp::/\\.\\d+(rem|em|px|%|pt|in|s)?/i",
+            "RegExp::/\\d+\\.\\d*(rem|em|px|%|pt|in|s)?/i",
+            "RegExp::/\\d*\\.\\d+(rem|em|px|%|pt|in|s)?/i",
+            // hex color
+            "RegExp::/#[0-9a-f]{3,6}/i"
         ],
         
-        // hex colors
-        "hexcolor" : "RegExp::/#[0-9a-fA-F]+/",
-
         // strings
         "string" : {
-            "type" : "escaped-block",
-            "escape" : "\\",
+            "type" : "block",
+            "multiline": false,
             "tokens" : [
                 //  start,           end of string (can be the matched regex group ie. 1 )
-                [ "RegExp::/([`'\"])/", 1 ]
+                [ "RegExp::/(['\"])/", 1 ]
             ]
         },
         
         "text" : "RegExp::/[^\\(\\)\\[\\]\\{\\}'\"]+/",
         
-        // operators
-        "operator" : {
-            "tokens" : [
-                "*", "+", ",", "=", ";", ">"
-            ]
-        },
+        // css identifier
+        "identifier" : "RegExp::/[a-z_\\-][a-z0-9_\\-]*/i",
         
-        // atoms
-        "atom" : {
-            // enable autocompletion for these tokens, with their associated token ID
-            "autocomplete" : true,
-            "tokens" : [ 
-                "block", "none", "inherit", "inline-block", "inline", 
-                "relative", "absolute", "fixed", "static",
-                "sans-serif", "serif", "monospace", "bolder", "bold", 
-                "rgba", "rgb", "underline", "wrap"
-            ]
-        },
+        // css ids
+        "CssID" : "RegExp::/#[a-z_\\-][a-z0-9_\\-]*/i",
         
-        // meta
-        "meta" : {
-            // enable autocompletion for these tokens, with their associated token ID
-            "autocomplete" : true,
-            "tokens" : [ "screen",  "handheld" ]
-        },
-
-        // defs
-        "meta2" : "RegExp::/@[_A-Za-z][_A-Za-z0-9]*/",
-
+        // css classes
+        "CssClass" : "RegExp::/\\.[a-z_\\-][a-z0-9_\\-]*/i",
+        
+        // css pseudo classes / pseudo elements
+        "PseudoElement" : "RegExp::/::?[a-z_\\-][a-z0-9_\\-]*/i",
+        
         // css properties
-        "property" : {
-            // enable autocompletion for these tokens, with their associated token ID
-            "autocomplete" : true,
-            "tokens" : [ 
-                "background-color", "background-image", "background-position", "background-repeat", "background", 
-                "font-family", "font-size", "font-weight", "font", 
-                "text-decoration", "text-align",
-                "margin-left", "margin-right", "margin-top", "margin-bottom", "margin", 
-                "padding-left", "padding-right", "padding-top", "padding-bottom", "padding", 
-                "border-left", "border-right", "border-top", "border-bottom", "border", 
-                "position", "display" , "content", "color"
-            ]
-        },
+        "CssProperty" : "RegExp::/[a-z_\\-][a-z0-9_\\-]*/i",
                               
-        // css html element
-        "element" : {
-            // enable autocompletion for these tokens, with their associated token ID
-            "autocomplete" : true,
-            "tokens" : [ 
-                "a", "p", "i",
-                "br", "hr",
-                "sup", "sub",
-                "img", "video", "audio", 
-                "canvas", "iframe",
-                "pre", "code",
-                "h1", "h2", "h3", "h4", "h5", "h6", 
-                "html", "body", 
-                "header", "footer", "nav",
-                "div", "span", "section", "strong",
-                "blockquote"
-            ]
-        },
+        // css atoms / values
+        "url" : "RegExp::/url\\b/i",
+        "format" : "RegExp::/format\\b/i",
+        "CssAtom" : "RegExp::/[a-z_\\-][a-z_\\-]*/i",
         
-        "url" : "RegExp::/url\\b/"
+        // css @atrules
+        "@import" : "RegExp::/@import\\b/i",
+        "@keyframes" : "RegExp::/@[a-z\\-]*keyframes\\b/i",
+        "@media" : "RegExp::/@media\\b/i",
+        "@atrule" : "RegExp::/@[a-z_\\-][a-z0-9_\\-]*/i",
+        
+        "!important" : "RegExp::/!important\\b/i",
+        
+        // css html element
+        "HtmlElement" : "RegExp::/[a-z_\\-][a-z0-9_\\-]*/i"
     },
 
     //
     // Syntax model (optional)
     "Syntax" : {
         
-        "stringOrUnquotedText" : {
+        "stringOrText" : {
             "type" : "group",
             "match" : "either",
             "tokens" : [ "string", "text" ]
         },
         
-        // highlight url(...) as string regardless of quotes or not
         "urlDeclaration" : {
-            "type" : "n-gram",
-            "tokens" : [ "url", "" /* match non-space */, "(", "stringOrUnquotedText", ")" ]
+            "type" : "ngram",
+            "tokens" : [ "url", "(", "stringOrText", ")" ]
+        },
+        
+        "formatDeclaration" : {
+            "type" : "ngram",
+            "tokens" : [ "format", "(", "stringOrText", ")" ]
+        },
+        
+        "cssSelector" : {
+            "type" : "group",
+            "match" : "oneOrMore",
+            "tokens" : [ "HtmlElement", "CssID", "CssClass", "PseudoElement", "string", ",", "(", ")", "[", "]", "=", "+", "^", ">", "*", "~"]
         },
         
         "RHSAssignment" : {
             "type" : "group",
             "match" : "oneOrMore",
-            "tokens" : [ "urlDeclaration", "atom", "font", "standard", "string", "number", "hexcolor", "identifier", ",", "(", ")" ]
+            "tokens" : [ "!important", "urlDeclaration", "formatDeclaration", "string", "number", "CssAtom", ",", "(", ")" ]
+        },
+        
+        "semicolon" : {
+            "type" : "group",
+            "match" : "zeroOrMore",
+            "tokens" : [ ";" ]
         },
         
         "cssAssignment" : {
             "type" : "group",
             "match" : "all",
-            "tokens" : [ "property", ":", "RHSAssignment", ";" ]
+            "tokens" : [ "CssProperty", ":", "RHSAssignment", "semicolon" ]
         },
         
         "cssAssignments" : {
@@ -203,24 +155,69 @@ var css_grammar = {
         "cssBlock" : {
             "type" : "n-gram",
             "tokens" : [
-                [ "{", "cssAssignments", "}" ]
+                [ "number", "{", "cssAssignments", "}" ],
+                [ "cssSelector", "{", "cssAssignments", "}" ]
             ]
+        },
+        
+        "cssBlocks" : {
+            "type" : "group",
+            "match": "zeroOrMore",
+            "tokens" : [ "cssBlock" ]
+        },
+        
+        "@importDirective" : {
+            "type" : "n-gram",
+            "tokens" : [ "@import", "urlDeclaration", ";" ]
+        },
+        
+        "@keyframesDirective" : {
+            "type" : "n-gram",
+            "tokens" : [ "@keyframes", "identifier", "{", "cssBlocks", "}" ]
+        },
+        
+        "cssIdentifiers" : {
+            "type" : "group",
+            "match": "oneOrMore",
+            "tokens" : [ "identifier", "number", "string", ",", "(", ")"]
+        },
+        
+        "@mediaDirective" : {
+            "type" : "n-gram",
+            "tokens" : [ "@media", "cssIdentifiers", "{", "cssBlocks", "}" ]
+        },
+        
+        "atruleLine" : {
+            "type" : "group",
+            "match": "all",
+            "tokens" : [ "cssIdentifiers", "semicolon" ]
+        },
+        
+        "atruleBlock" : {
+            "type" : "group",
+            "match": "all",
+            "tokens" : [ "{", "cssAssignments", "}" ]
+        },
+        
+        "atruleLineOrBlock" : {
+            "type" : "group",
+            "match": "either",
+            "tokens" : [ "atruleBlock", "atruleLine" ]
+        },
+        
+        "@atruleDirective"  : {
+            "type" : "n-gram",
+            "tokens" : [ "@atrule", "atruleLineOrBlock" ]
         }
     },
 
     // what to parse and in what order
     "Parser" : [
         "comment",
-        "meta",
-        "meta2",
-        "urlDeclaration",
-        "element",
-        "cssID",
-        "cssClass",
-        "cssPseudoElement",
-        "cssBlock",
-        "number",
-        "hexcolor",
-        "string"
+        "@importDirective",
+        "@keyframesDirective",
+        "@mediaDirective",
+        "@atruleDirective",
+        "cssBlock"
     ]
 };

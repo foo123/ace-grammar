@@ -36,7 +36,7 @@
                         var ayto = this, sender = ayto.sender;
                         //console.log('Init called '+id);
                         //console.log(grammar);
-                        ayto.parser = getParser( parseGrammar( grammar ), { DEFAULT: DEFAULTSTYLE, ERROR: DEFAULTERROR } );
+                        ayto.parser = new AceParser( parseGrammar( grammar ), { DEFAULT: DEFAULTSTYLE, ERROR: DEFAULTERROR } );
                         sender.callback(1, id);
                     },
                     

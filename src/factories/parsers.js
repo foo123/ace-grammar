@@ -111,7 +111,7 @@
                 
                 var ayto = this, i, rewind, rewind2, ci,
                     tokenizer, interleavedCommentTokens = ayto.cTokens, tokens = ayto.Tokens, numTokens = tokens.length, 
-                    aceTokens, token, type, currentError = null,
+                    aceTokens, token, type, currentError = null, top,
                     stream, stack, DEFAULT = ayto.DEF, ERROR = ayto.ERR
                 ;
                 
@@ -120,11 +120,15 @@
                 state = (state) ? state.clone( 1 ) : new ParserState( 1, 1 );
                 state.l = 1+row;
                 stack = state.stack;
+                top = (stack.length) ? stack[stack.length-1] : null;
                 token = { type: null, value: "" };
                 type = null;
                 
                 // if EOL tokenizer is left on stack, pop it now
-                if ( stack.length && T_EOL == stack[stack.length-1].tt ) stack.pop();
+                if ( top && T_EOL == top.tt && stream.sol() ) 
+                {
+                    stack.pop();
+                }
                 
                 while ( !stream.eol() )
                 {
@@ -193,8 +197,8 @@
                                 // generate error
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
-                                rewind = 1;
                                 currentError = tokenizer.err();
+                                rewind = 1;
                                 break;
                             }
                             // optional
@@ -206,6 +210,17 @@
                         // found token
                         else
                         {
+                            // match action error
+                            if ( tokenizer.MTCH )
+                            {
+                                // empty the stack
+                                //stack.length = 0;
+                                emptyStack(stack, tokenizer.sID);
+                                // generate error
+                                state.t = T_ERROR;
+                                state.r = type = ERROR;
+                                currentError = tokenizer.err();
+                            }
                             rewind = 1;
                             break;
                         }
@@ -233,8 +248,8 @@
                                 // generate error
                                 state.t = T_ERROR;
                                 state.r = type = ERROR;
-                                rewind = 1;
                                 currentError = tokenizer.err();
+                                rewind = 1;
                                 break;
                             }
                             // optional
@@ -246,6 +261,17 @@
                         // found token
                         else
                         {
+                            // match action error
+                            if ( tokenizer.MTCH )
+                            {
+                                // empty the stack
+                                //stack.length = 0;
+                                emptyStack(stack, tokenizer.sID);
+                                // generate error
+                                state.t = T_ERROR;
+                                state.r = type = ERROR;
+                                currentError = tokenizer.err();
+                            }
                             rewind = 1;
                             break;
                         }
@@ -475,10 +501,6 @@
             getNextLineIndent : function(state, line, tab) { return line.match(/^\s*/)[0]; }
         }),
         
-        getParser = function(grammar, LOCALS) {
-            return new AceParser(grammar, LOCALS);
-        },
-        
         getAceMode = function(parser, grammar) {
             
             var mode;
@@ -589,7 +611,7 @@
             var parsedgrammar = parseGrammar( grammar );
             //console.log(grammar);
             
-            return getAceMode( getParser( parsedgrammar, LOCALS ), grammar );
+            return getAceMode( new AceParser( parsedgrammar, LOCALS ), grammar );
         }
     ;
   
