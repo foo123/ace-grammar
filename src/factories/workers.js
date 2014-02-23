@@ -19,25 +19,23 @@
         {
             ace.define('ace/grammar_worker', ['require', 'exports', 'module' , 'ace/worker/mirror'], function(require, exports, module) {
 
-                var Mirror = require("./worker/mirror").Mirror;
-                exports.AceGrammarWorker = Class(Mirror, {
+                exports.AceGrammarWorker = Class(require("./worker/mirror").Mirror, {
 
                     constructor: function( sender ) {
                         var ayto = this;
                         ayto.$super('constructor', sender);
                         ayto.setTimeout( 500 );
-                        //ayto.parser = getParser( parseGrammar( current_grammar ), { DEFAULT: DEFAULTSTYLE, ERROR: DEFAULTERROR } );
                     },
                     
                     parser: null,
                     
                     
                     Init: function( grammar, id ) {
-                        var ayto = this, sender = ayto.sender;
+                        var ayto = this;
                         //console.log('Init called '+id);
                         //console.log(grammar);
-                        ayto.parser = new AceParser( parseGrammar( grammar ), { DEFAULT: DEFAULTSTYLE, ERROR: DEFAULTERROR } );
-                        sender.callback(1, id);
+                        ayto.parser = new Parser( parseGrammar( grammar ), { DEFAULT: DEFAULTSTYLE, ERROR: DEFAULTERROR } );
+                        ayto.sender.callback(1, id);
                     },
                     
                     
@@ -49,14 +47,14 @@
                         
                         if ( !parser )
                         {
-                            sender.emit("ok", []);
+                            sender.emit("ok", null);
                             return;
                         }
                         
                         code = ayto.doc.getValue();
                         if ( !code || !code.length ) 
                         {
-                            sender.emit("ok", []);
+                            sender.emit("ok", null);
                             return;
                         }
                         
@@ -89,14 +87,9 @@
                                 column += token.value.length;
                             }
                         }
-                        if (errorFound)
-                        {
-                            sender.emit("error", errors);
-                        }
-                        else
-                        {
-                            sender.emit("ok", []);
-                        }
+                        
+                        if (errorFound)  sender.emit("error", errors);
+                        else  sender.emit("ok", null);
                     }
                 });
             });

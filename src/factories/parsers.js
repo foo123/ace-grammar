@@ -49,7 +49,8 @@
                 ayto.$worker.onmessage = ayto.onMessage;
             }
         }),
-        AceParser = Class(ace_require('ace/tokenizer').Tokenizer, {
+        
+        Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             
             constructor: function(grammar, LOC) {
                 var ayto = this, rxLine;
@@ -80,6 +81,7 @@
                 
                 ayto.Tokens = grammar.Parser || [];
                 ayto.cTokens = (grammar.cTokens.length) ? grammar.cTokens : null;
+                ayto.Style = grammar.Style;
             },
             
             ERR: null,
@@ -92,11 +94,12 @@
             Keywords: null,
             cTokens: null,
             Tokens: null,
+            Style: null,
 
             parse: function(code) {
                 code = code || "";
                 var lines = code.split(/\r\n|\r|\n/g), l = lines.length, i, tokens = [], data;
-                data = { state: new ParserState( ), tokens: null };
+                data = { state: new State( ), tokens: null };
                 
                 for (i=0; i<l; i++)
                 {
@@ -111,21 +114,21 @@
                 
                 var ayto = this, i, rewind, rewind2, ci,
                     tokenizer, interleavedCommentTokens = ayto.cTokens, tokens = ayto.Tokens, numTokens = tokens.length, 
-                    aceTokens, token, type, currentError = null, top,
-                    stream, stack, DEFAULT = ayto.DEF, ERROR = ayto.ERR
+                    aceTokens, token, type, style, currentError = null,
+                    stream, stack, DEFAULT = ayto.DEF, ERROR = ayto.ERR, Style = ayto.Style
                 ;
                 
                 aceTokens = []; 
-                stream = new ParserStream( line );
-                state = (state) ? state.clone( 1 ) : new ParserState( 1, 1 );
+                stream = new Stream( line );
+                state = (state) ? state.clone( 1 ) : new State( 1, 1 );
                 state.l = 1+row;
                 stack = state.stack;
-                top = (stack.length) ? stack[stack.length-1] : null;
-                token = { type: null, value: "" };
+                token = { type: null, value: "", error: null };
                 type = null;
+                style = null;
                 
                 // if EOL tokenizer is left on stack, pop it now
-                if ( top && T_EOL == top.tt && stream.sol() ) 
+                if ( !stack.isEmpty() && T_EOL == stack.peek().tt && stream.sol() ) 
                 {
                     stack.pop();
                 }
@@ -134,31 +137,27 @@
                 {
                     rewind = 0;
                     
-                    if ( type && type !== token.type )
+                    if ( style && style !== token.type )
                     {
                         if ( token.type ) aceTokens.push( token );
-                        token = { type: type, value: stream.cur(1), error: currentError };
+                        token = { type: style, value: stream.cur(1), error: currentError };
                         currentError = null;
-                        //stream.sft();
                     }
                     else if ( token.type )
                     {
                         token.value += stream.cur(1);
-                        //stream.sft();
                     }
+                    style = false;
                     
                     // check for non-space tokenizer before parsing space
-                    if ( !stack.length || T_NONSPACE != stack[stack.length-1].tt )
+                    if ( (stack.isEmpty() || (T_NONSPACE != stack.peek().tt)) && stream.spc() )
                     {
-                        if ( stream.spc() )
-                        {
-                            state.t = T_DEFAULT;
-                            state.r = type = DEFAULT;
-                            continue;
-                        }
+                        state.t = type = DEFAULT;
+                        style = DEFAULT;
+                        continue;
                     }
                     
-                    while ( stack.length && !stream.eol() )
+                    while ( !stack.isEmpty() && !stream.eol() )
                     {
                         if ( interleavedCommentTokens )
                         {
@@ -166,9 +165,10 @@
                             while ( ci < interleavedCommentTokens.length )
                             {
                                 tokenizer = interleavedCommentTokens[ci++];
-                                state.r = type = tokenizer.get(stream, state);
+                                state.t = type = tokenizer.get(stream, state);
                                 if ( false !== type )
                                 {
+                                    style = Style[type] || DEFAULT;
                                     rewind2 = 1;
                                     break;
                                 }
@@ -181,7 +181,7 @@
                         }
                     
                         tokenizer = stack.pop();
-                        state.r = type = tokenizer.get(stream, state);
+                        state.t = type = tokenizer.get(stream, state);
                     
                         // match failed
                         if ( false === type )
@@ -190,13 +190,12 @@
                             if ( tokenizer.ERR || tokenizer.REQ )
                             {
                                 // empty the stack
-                                //stack.length = 0;
-                                emptyStack(stack, tokenizer.sID);
+                                stack.empty('sID', tokenizer.sID);
                                 // skip this character
                                 stream.nxt();
                                 // generate error
-                                state.t = T_ERROR;
-                                state.r = type = ERROR;
+                                state.t = type = ERROR;
+                                style = ERROR;
                                 currentError = tokenizer.err();
                                 rewind = 1;
                                 break;
@@ -204,21 +203,22 @@
                             // optional
                             else
                             {
+                                style = false;
                                 continue;
                             }
                         }
-                        // found token
-                        else
+                        // found token (not empty)
+                        else if ( true !== type )
                         {
+                            style = Style[type] || DEFAULT;
                             // match action error
                             if ( tokenizer.MTCH )
                             {
                                 // empty the stack
-                                //stack.length = 0;
-                                emptyStack(stack, tokenizer.sID);
+                                stack.empty('sID', tokenizer.sID);
                                 // generate error
-                                state.t = T_ERROR;
-                                state.r = type = ERROR;
+                                state.t = type = ERROR;
+                                style = ERROR;
                                 currentError = tokenizer.err();
                             }
                             rewind = 1;
@@ -232,7 +232,7 @@
                     for (i=0; i<numTokens; i++)
                     {
                         tokenizer = tokens[i];
-                        state.r = type = tokenizer.get(stream, state);
+                        state.t = type = tokenizer.get(stream, state);
                         
                         // match failed
                         if ( false === type )
@@ -241,13 +241,12 @@
                             if ( tokenizer.ERR || tokenizer.REQ )
                             {
                                 // empty the stack
-                                //stack.length = 0;
-                                emptyStack(stack, tokenizer.sID);
+                                stack.empty('sID', tokenizer.sID);
                                 // skip this character
                                 stream.nxt();
                                 // generate error
-                                state.t = T_ERROR;
-                                state.r = type = ERROR;
+                                state.t = type = ERROR;
+                                style = ERROR;
                                 currentError = tokenizer.err();
                                 rewind = 1;
                                 break;
@@ -255,21 +254,22 @@
                             // optional
                             else
                             {
+                                style = false;
                                 continue;
                             }
                         }
-                        // found token
-                        else
+                        // found token (not empty)
+                        else if ( true !== type )
                         {
+                            style = Style[type] || DEFAULT;
                             // match action error
                             if ( tokenizer.MTCH )
                             {
                                 // empty the stack
-                                //stack.length = 0;
-                                emptyStack(stack, tokenizer.sID);
+                                stack.empty('sID', tokenizer.sID);
                                 // generate error
-                                state.t = T_ERROR;
-                                state.r = type = ERROR;
+                                state.t = type = ERROR;
+                                style = ERROR;
                                 currentError = tokenizer.err();
                             }
                             rewind = 1;
@@ -282,14 +282,14 @@
                     
                     // unknown, bypass
                     stream.nxt();
-                    state.t = T_DEFAULT;
-                    state.r = type = DEFAULT;
+                    state.t = type = DEFAULT;
+                    style = DEFAULT;
                 }
                 
-                if ( type && type !== token.type )
+                if ( style && style !== token.type )
                 {
                     if ( token.type ) aceTokens.push( token );
-                    aceTokens.push( { type: type, value: stream.cur(1), error: currentError } );
+                    aceTokens.push( { type: style, value: stream.cur(1), error: currentError } );
                     currentError = null;
                 }
                 else if ( token.type )
@@ -611,7 +611,7 @@
             var parsedgrammar = parseGrammar( grammar );
             //console.log(grammar);
             
-            return getAceMode( new AceParser( parsedgrammar, LOCALS ), grammar );
+            return getAceMode( new Parser( parsedgrammar, LOCALS ), grammar );
         }
     ;
   
