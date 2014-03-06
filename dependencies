@@ -39,7 +39,7 @@ HEADER =
 # do any replacements to the source (orderedmap)
 REPLACE =[{}]
 
-    "@@VERSION@@" = "0.8"
+    "@@VERSION@@" = "0.8.1"
     
     "@@MODULE_NAME@@" = "AceGrammar"
     
