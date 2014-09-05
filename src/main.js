@@ -36,7 +36,7 @@
     [/DOC_MARKDOWN]**/
     DEFAULTSTYLE = "text";
     DEFAULTERROR = "invalid";
-    var AceGrammar = {
+    var AceGrammar = exports.AceGrammar = {
         
         VERSION : "@@VERSION@@",
         

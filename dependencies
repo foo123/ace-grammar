@@ -39,12 +39,11 @@ HEADER =
 # do any replacements to the source (orderedmap)
 REPLACE =[{}]
 
-    "@@VERSION@@" = "0.8.2"
-    
+    "@@ROOT@@" = "this"
+    "@@EXPORTS@@" = "exports"
+    "@@VERSION@@" = "0.8.3"
     "@@MODULE_NAME@@" = "AceGrammar"
-    
-    "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', './classy'],  ['RegExAnalyzer', './regexanalyzer'] ]"
-    
+    "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', 'RegExAnalyzer'],  ['./classy.js', './regexanalyzer.js'] ]"
     "@@MODULE_ARGUMENTS@@"  = "Classy, RegexAnalyzer, undef"
     
 @ # end block
