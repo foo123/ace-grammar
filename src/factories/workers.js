@@ -23,7 +23,7 @@
 
                     constructor: function( sender ) {
                         var ayto = this;
-                        ayto.$super('constructor', sender);
+                        ayto.$superv('constructor', [sender]);
                         ayto.setTimeout( 500 );
                     },
                     
