@@ -1,7 +1,7 @@
 /**
 *
 *   AceGrammar
-*   @version: 0.8.4
+*   @version: 0.8.5
 *
 *   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
@@ -2570,7 +2570,7 @@
   /**
 *
 *   AceGrammar
-*   @version: 0.8.4
+*   @version: 0.8.5
 *
 *   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
@@ -2607,7 +2607,7 @@
     DEFAULTERROR = "invalid";
     var AceGrammar = exports['AceGrammar'] = {
         
-        VERSION : "0.8.4",
+        VERSION : "0.8.5",
         
         // extend a grammar using another base grammar
         /**[DOC_MARKDOWN]
