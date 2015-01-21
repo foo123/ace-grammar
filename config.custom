@@ -5,9 +5,14 @@
 #
 ###################################################
 
+plugins =[{}]
+    # include 'doc' plugin from plugins folder
+    "doc" = "!plg:doc"
+@
+
 tasks =[{}]
     
-    build ={}
+    build =[{}]
         
         src =[]
             
@@ -24,7 +29,7 @@ tasks =[{}]
             ./src/main.js
             !tpl:umd-footer.tpl.js  # include a umd-footer template
 
-        @ # end block
+        @
 
         # extract header from this file
         header = ./src/main.js
@@ -39,19 +44,19 @@ tasks =[{}]
             "@@MODULE_DEPENDENCIES@@" = "[ ['Classy', 'RegExAnalyzer'],  ['./classy.js', './regexanalyzer.js'] ]"
             "@@MODULE_ARGUMENTS@@"  = "Classy, RegexAnalyzer, undef"
             
-        @ # end block
+        @
 
         out = ./build/ace_grammar.js
         
-    @ # end block
+    @
     
-    minify ={}
+    minify =[{}]
         
         src =[]
             
             ./build/ace_grammar.js
             
-        @ # end block
+        @
 
 
         # extract documentation from the source (map)
@@ -60,44 +65,44 @@ tasks =[{}]
             "enddoc" = "[/DOC_MARKDOWN]**/"
             "trimx" = "\\s*\\*[ ]?"
             "output" = "./api-reference.md"
-        @ # end block
+        @
 
 
         # Minify the Package (map of lists)
         minify ={}
 
             # Options for Node UglifyJS Compiler (if used, default), (mangle and compress)
-            "uglifyjs" =[]
+            uglifyjs =[]
                 -m -c
-            @ # end block
+            @
 
             # Options for Java Closure Compiler (if used)
-            "closure" =[]
+            closure =[]
                 "--language_in=ECMASCRIPT5_STRICT"
-            @ # end block
+            @
 
             # Options for Java YUI Compressor Compiler (if used)
-            "yui" =[]
+            yui =[]
                 --preserve-semi
-            @ # end block
+            @
 
-        @ # end block
+        @
 
         out = ./build/ace_grammar.min.js    
     
-    @ # end block
+    @
     
-    bundle ={}
+    bundle =[{}]
         
         bundle =[]
             ## bundle-in external dependencies ##
             ./build/classy.js
             ./build/regexanalyzer.js
             ./build/ace_grammar.min.js
-        @ # end block
+        @
         
         out =./build/ace_grammar.bundle.js
     
-    @ # end block
+    @
 
-@ # end block
+@
