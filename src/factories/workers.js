@@ -19,13 +19,15 @@
         {
             ace.define('ace/grammar_worker', ['require', 'exports', 'module' , 'ace/worker/mirror'], function(require, exports, module) {
 
-                exports.AceGrammarWorker = Class(require("./worker/mirror").Mirror, {
-
-                    constructor: function( sender ) {
-                        var ayto = this;
-                        ayto.$superv('constructor', [sender]);
-                        ayto.setTimeout( 500 );
-                    },
+                var AceGrammarWorker, AceMirror = require("./worker/mirror").Mirror;
+                AceGrammarWorker = exports.AceGrammarWorker = function AceGrammarWorker( sender ) {
+                    var ayto = this;
+                    AceMirror.call(ayto, sender);
+                    ayto.setTimeout( 500 );
+                };
+                // extends require("./worker/mirror").Mirror
+                AceGrammarWorker[PROTO] = Merge(Extend(AceMirror[PROTO]), {
+                    constructor: AceGrammarWorker,
                     
                     parser: null,
                     
