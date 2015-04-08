@@ -33,7 +33,8 @@
         
     /* main code starts here */
 
-        
+    "use strict";
+    
     //
     // parser types
     var    
@@ -97,7 +98,7 @@
         T_STR = 16, T_CHAR = 17, T_CHARLIST = 18,
         T_ARRAY = 32, T_OBJ = 64, T_FUNC = 128,  T_REGEX = 256,
         T_NULL = 512, T_UNDEF = 1024, T_UNKNOWN = 2048,
-        T_STR_OR_ARRAY = T_STR|T_ARRAY, T_OBJ_OR_ARRAY = T_OBJ|T_ARRAY
+        T_STR_OR_ARRAY = T_STR|T_ARRAY, T_OBJ_OR_ARRAY = T_OBJ|T_ARRAY,
         TO_STRING = {
             "[object Array]"    : T_ARRAY,
             "[object RegExp]"   : T_REGEX,
@@ -1156,7 +1157,7 @@
                             else t = groupReplace( t, token[1] );
                         }
                         
-                        if ( data.isEmpty( ) || t != data.peek( ) ) return t;
+                        if ( data.isEmpty( ) || t !== data.peek( ) ) return t;
                         data.pop( );
                     }
                     else if ( data.length ) data.pop( );
@@ -1171,14 +1172,14 @@
             
             ayto.MTCH = 0;
             // match EMPTY token
-            if ( T_EMPTY == type ) 
+            if ( T_EMPTY === type ) 
             { 
                 ayto.ERR = 0;
                 ayto.REQ = 0;
                 return true;
             }
             // match EOL ( with possible leading spaces )
-            else if ( T_EOL == type ) 
+            else if ( T_EOL === type ) 
             { 
                 stream.spc();
                 if ( stream.eol() )
@@ -1187,7 +1188,7 @@
                 }
             }
             // match non-space
-            else if ( T_NONSPACE == type ) 
+            else if ( T_NONSPACE === type ) 
             { 
                 ayto.ERR = ( ayto.REQ && stream.spc() && !stream.eol() ) ? 1 : 0;
                 ayto.REQ = 0;
@@ -1790,7 +1791,7 @@
         getComments = function( tok, comments ) {
             // build start/end mappings
             var tmp = make_array_2(tok.tokens.slice()); // array of arrays
-            var start, end, lead;
+            var start, end, lead, i, l;
             for (i=0, l=tmp.length; i<l; i++)
             {
                 start = tmp[i][0];
@@ -2507,87 +2508,89 @@
                 Init.call(window);
             } 
         };
-        
-        function Init()
+    }
+    function Init()
+    {
+        if ( isWorker )
         {
-            ace.define('ace/grammar_worker', ['require', 'exports', 'module' , 'ace/worker/mirror'], function(require, exports, module) {
+        ace.define('ace/grammar_worker', ['require', 'exports', 'module' , 'ace/worker/mirror'], function(require, exports, module) {
 
-                var AceGrammarWorker, AceMirror = require("./worker/mirror").Mirror;
-                AceGrammarWorker = exports.AceGrammarWorker = function AceGrammarWorker( sender ) {
+            var AceMirror = require("./worker/mirror").Mirror, AceGrammarWorker;
+            exports.AceGrammarWorker = AceGrammarWorker = function AceGrammarWorker( sender ) {
+                var ayto = this;
+                AceMirror.call(ayto, sender);
+                ayto.setTimeout( 500 );
+            };
+            // extends require("./worker/mirror").Mirror
+            AceGrammarWorker[PROTO] = Merge(Extend(AceMirror[PROTO]), {
+                constructor: AceGrammarWorker,
+                
+                parser: null,
+                
+                
+                Init: function( grammar, id ) {
                     var ayto = this;
-                    AceMirror.call(ayto, sender);
-                    ayto.setTimeout( 500 );
-                };
-                // extends require("./worker/mirror").Mirror
-                AceGrammarWorker[PROTO] = Merge(Extend(AceMirror[PROTO]), {
-                    constructor: AceGrammarWorker,
+                    //console.log('Init called '+id);
+                    //console.log(grammar);
+                    ayto.parser = new Parser( parseGrammar( grammar ), { DEFAULT: DEFAULTSTYLE, ERROR: DEFAULTERROR } );
+                    ayto.sender.callback(1, id);
+                },
+                
+                
+                onUpdate: function() {
+                    var ayto = this, sender = ayto.sender, parser = ayto.parser,
+                        code, linetokens, tokens, errors,
+                        line, lines, t, token, column, errorFound = 0
+                    ;
                     
-                    parser: null,
-                    
-                    
-                    Init: function( grammar, id ) {
-                        var ayto = this;
-                        //console.log('Init called '+id);
-                        //console.log(grammar);
-                        ayto.parser = new Parser( parseGrammar( grammar ), { DEFAULT: DEFAULTSTYLE, ERROR: DEFAULTERROR } );
-                        ayto.sender.callback(1, id);
-                    },
-                    
-                    
-                    onUpdate: function() {
-                        var ayto = this, sender = ayto.sender, parser = ayto.parser,
-                            code, linetokens, tokens, errors,
-                            line, lines, t, token, column, errorFound = 0
-                        ;
-                        
-                        if ( !parser )
-                        {
-                            sender.emit("ok", null);
-                            return;
-                        }
-                        
-                        code = ayto.doc.getValue();
-                        if ( !code || !code.length ) 
-                        {
-                            sender.emit("ok", null);
-                            return;
-                        }
-                        
-                        errors = [];
-                        linetokens = parser.parse( code );
-                        lines = linetokens.length;
-                        
-                        for (line=0; line<lines; line++) 
-                        {
-                            tokens = linetokens[ line ];
-                            if ( !tokens || !tokens.length )  continue;
-                            
-                            column = 0;
-                            for (t=0; t<tokens.length; t++)
-                            {
-                                token = tokens[t];
-                                
-                                if ( parser.ERR == token.type )
-                                {
-                                    errors.push({
-                                        row: line,
-                                        column: column,
-                                        text: token.error || "Syntax Error",
-                                        type: "error",
-                                        raw: token.error || "Syntax Error"
-                                    });
-                                    
-                                    errorFound = 1;
-                                }
-                                column += token.value.length;
-                            }
-                        }
-                        
-                        if (errorFound)  sender.emit("error", errors);
-                        else  sender.emit("ok", null);
+                    if ( !parser )
+                    {
+                        sender.emit("ok", null);
+                        return;
                     }
-                });
+                    
+                    code = ayto.doc.getValue();
+                    if ( !code || !code.length ) 
+                    {
+                        sender.emit("ok", null);
+                        return;
+                    }
+                    
+                    errors = [];
+                    linetokens = parser.parse( code );
+                    lines = linetokens.length;
+                    
+                    for (line=0; line<lines; line++) 
+                    {
+                        tokens = linetokens[ line ];
+                        if ( !tokens || !tokens.length )  continue;
+                        
+                        column = 0;
+                        for (t=0; t<tokens.length; t++)
+                        {
+                            token = tokens[t];
+                            
+                            if ( parser.ERR == token.type )
+                            {
+                                errors.push({
+                                    row: line,
+                                    column: column,
+                                    text: token.error || "Syntax Error",
+                                    type: "error",
+                                    raw: token.error || "Syntax Error"
+                                });
+                                
+                                errorFound = 1;
+                            }
+                            column += token.value.length;
+                        }
+                    }
+                    
+                    if (errorFound)  sender.emit("error", errors);
+                    else  sender.emit("ok", null);
+                }
             });
+        });
         }
     }
   /**
