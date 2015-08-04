@@ -242,8 +242,8 @@ Parser[PROTO] = Merge(
                 else if ( true !== type )
                 {
                     style = Style[type] || DEFAULT;
-                    // match action error
-                    if ( tokenizer.MTCH )
+                    // action error
+                    if ( tokenizer.ACT )
                     {
                         // empty the stack
                         stack.empty('sID', tokenizer.sID);
@@ -293,8 +293,8 @@ Parser[PROTO] = Merge(
                 else if ( true !== type )
                 {
                     style = Style[type] || DEFAULT;
-                    // match action error
-                    if ( tokenizer.MTCH )
+                    // action error
+                    if ( tokenizer.ACT )
                     {
                         // empty the stack
                         stack.empty('sID', tokenizer.sID);
@@ -643,15 +643,16 @@ if ( isWorker )
 
 function getMode( grammar, DEFAULT ) 
 {
-    var parser = new Parser( parseGrammar( grammar ), { 
+    var grammar_copy = clone( grammar ),
+        parser = new Parser( parseGrammar( grammar ), { 
         // default return code for skipped or not-styled tokens
         // 'text' should be used in most cases
         DEFAULT: DEFAULT || DEFAULTSTYLE,
         ERROR: DEFAULTERROR
-    }), mode, grammar_copy = clone( grammar );
+    }), mode;
     
     // ACE-compatible Mode
-    return mode = {
+    mode = {
         /*
         // Maybe needed in later versions..
         
@@ -746,6 +747,7 @@ function getMode( grammar, DEFAULT )
             });
         }
     };
+    return mode;
 }
 
 
