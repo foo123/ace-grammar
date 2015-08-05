@@ -5,7 +5,7 @@ __Transform a JSON grammar into an ACE syntax-highlight parser__
 
 
 
-A simple and light-weight ( ~ 25kB minified) [ACE](https://github.com/ajaxorg/ace) add-on
+A simple and light-weight (~ 25kB minified, ~ 9kB zipped) [ACE](https://github.com/ajaxorg/ace) add-on
 
 to generate syntax-highlight parsers (ace modes) from a grammar specification in JSON format.
 
@@ -35,10 +35,11 @@ Code Indentation, Behaviours are ACE defaults, looking for ways to add more elab
 ###Features
 
 * A grammar can **extend other grammars** (so arbitrary variations and dialects can be parsed more easily)
-* [Grammar](/grammar-reference.md) includes: **Style Model** , **Lex Model** and **Syntax Model** (optional), plus a couple of *settings* (see examples)
-* Grammar **specification can be minimal** (defaults will be used) (see example grammars)
-* [Grammar Syntax Model](/grammar-reference.md) can enable highlight in a more context-specific way, plus detect possible *syntax errors*
-* [Grammar Syntax Model](/grammar-reference.md) can contain *recursive references* (see /test/grammar-js-recursion.html)
+* [`Grammar`](/grammar-reference.md) includes: `Style` Model , `Lex` Model and `Syntax` Model (optional), plus a couple of *settings* (see examples)
+* `Grammar` **specification can be minimal** (defaults will be used) (see example grammars)
+* [`Grammar Syntax Model`](/grammar-reference.md) can enable highlight in a more context-specific way, plus detect possible *syntax errors*
+* [`Grammar Syntax Model`](/grammar-reference.md) can contain *recursive references* (see `/test/grammar-js-recursion.html`)
+* [`Grammar Syntax Model`](/grammar-reference.md) can be specificed using [`BNF`](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form)-like notation (**NEW feature**)
 * Generated highlight modes can support **toggle comments** and **keyword autocompletion** functionality if defined in the grammar
 * Generated highlight modes can support **lint-like syntax-annotation** functionality generated from the grammar
 * Generated parsers are **optimized for speed and size**
@@ -63,7 +64,7 @@ var xml_grammar = {
     //
     // Style model
     "Style" : {
-        // lang token type  -> ACE (style) tag
+        // lang token type  -> Editor (style) tag
         "commentBlock":         "comment",
         "metaBlock":            "meta",
         "atom":                 "string",
@@ -73,9 +74,7 @@ var xml_grammar = {
         "autoCloseTag":         "keyword",
         "closeTag":             "keyword",
         "attribute":            "variable",
-        "assignment":           "operator",
         "number":               "constant.numeric",
-        "number2":              "constant.numeric",
         "string":               "string"
     },
 
@@ -110,21 +109,6 @@ var xml_grammar = {
             ]
         },
         
-        // numbers, in order of matching
-        "number" : [
-            // floats
-            "RegExp::/\\d+\\.\\d*/",
-            "RegExp::/\\.\\d+/",
-            // integers
-            // decimal
-            "RegExp::/[1-9]\\d*(e[\\+\\-]?\\d+)?/",
-            // just zero
-            "RegExp::/0(?![\\dx])/"
-        ],
-        
-        // hex colors
-        "hexnumber" : "RegExp::/#[0-9a-fA-F]+/",
-
         // strings
         "string" : {
             "type" : "block",
@@ -134,6 +118,17 @@ var xml_grammar = {
                 [ "\"" ], [ "'" ] 
             ]
         },
+        
+        // numbers, in order of matching
+        "number" : [
+            // integers
+            // decimal
+            "RegExp::/[1-9]\\d*(e[\\+\\-]?\\d+)?/",
+            // just zero
+            "RegExp::/0(?![\\dx])/",
+            // hex colors
+            "RegExp::/#[0-9a-fA-F]+/"
+        ],
         
         // atoms
         "atom" : [
@@ -147,59 +142,43 @@ var xml_grammar = {
         
         // tags
         "closeTag" : ">",
+        
         "openTag" : {
             // allow to match start/end tags
             "push" : "TAG<$1>",
             "tokens" : "RegExp::/<([_a-zA-Z][_a-zA-Z0-9\\-]*)/"
         },
+        
         "autoCloseTag" : {
             // allow to match start/end tags
             "pop" : null,
             "tokens" : "/>"
         },
+        
         "endTag" : {
             // allow to match start/end tags
             "pop" : "TAG<$1>",
-            "tokens" : "RegExp::#</([_a-zA-Z][_a-zA-Z0-9\\-]*)>#"
+            "tokens" : "RegExp::/<\\/([_a-zA-Z][_a-zA-Z0-9\\-]*)>/"
         }
     },
     
     //
     // Syntax model (optional)
     "Syntax" : {
+        // NEW feature
+        // using BNF-like shorthands, instead of multiple grammar configuration objects
         
-        "stringOrNumber" : {
-            "type" : "group",
-            "match" : "either",
-            "tokens" : [ "string", "number", "hexnumber" ] 
-        },
+        "tagAttribute": "attribute '=' (string | number)",
         
-        "tagAttribute" : { 
-            "type" : "group",
-            "match" : "all",
-            "tokens" : [ "attribute", "=", "stringOrNumber" ]
-        },
+        "startTag": "openTag tagAttribute* (closeTag | autoCloseTag)",
         
-        "tagAttributes" : { 
-            "type" : "group",
-            "match" : "zeroOrMore",
-            "tokens" : [ "tagAttribute" ]
-        },
-        
-        "closeOpenTag" : { 
-            "type" : "group",
-            "match" : "either",
-            "tokens" : [ "closeTag",  "autoCloseTag"]
-        },
-        
-        // n-grams define syntax sequences
-        "tags" : { 
-            "type" : "n-gram",
-            "tokens" :[
-                [ "openTag", "tagAttributes", "closeOpenTag" ],
-                [ "endTag" ]
+        "tags": {
+            "type": "ngram",
+            "tokens": [
+                ["startTag"], 
+                ["endTag"]
             ]
-        },
+        }
     },
     
     // what to parse and in what order

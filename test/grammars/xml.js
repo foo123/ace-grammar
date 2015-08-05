@@ -18,7 +18,6 @@ var xml_grammar = {
         "closeTag":             "keyword",
         "attribute":            "variable",
         "number":               "constant.numeric",
-        "hexnumber":            "constant.numeric",
         "string":               "string"
     },
 
@@ -53,21 +52,6 @@ var xml_grammar = {
             ]
         },
         
-        // numbers, in order of matching
-        "number" : [
-            // floats
-            "RegExp::/\\d+\\.\\d*/",
-            "RegExp::/\\.\\d+/",
-            // integers
-            // decimal
-            "RegExp::/[1-9]\\d*(e[\\+\\-]?\\d+)?/",
-            // just zero
-            "RegExp::/0(?![\\dx])/"
-        ],
-        
-        // hex colors
-        "hexnumber" : "RegExp::/#[0-9a-fA-F]+/",
-
         // strings
         "string" : {
             "type" : "block",
@@ -77,6 +61,17 @@ var xml_grammar = {
                 [ "\"" ], [ "'" ] 
             ]
         },
+        
+        // numbers, in order of matching
+        "number" : [
+            // integers
+            // decimal
+            "RegExp::/[1-9]\\d*(e[\\+\\-]?\\d+)?/",
+            // just zero
+            "RegExp::/0(?![\\dx])/",
+            // hex colors
+            "RegExp::/#[0-9a-fA-F]+/"
+        ],
         
         // atoms
         "atom" : [
@@ -90,59 +85,43 @@ var xml_grammar = {
         
         // tags
         "closeTag" : ">",
+        
         "openTag" : {
             // allow to match start/end tags
             "push" : "TAG<$1>",
             "tokens" : "RegExp::/<([_a-zA-Z][_a-zA-Z0-9\\-]*)/"
         },
+        
         "autoCloseTag" : {
             // allow to match start/end tags
             "pop" : null,
             "tokens" : "/>"
         },
+        
         "endTag" : {
             // allow to match start/end tags
             "pop" : "TAG<$1>",
-            "tokens" : "RegExp::#</([_a-zA-Z][_a-zA-Z0-9\\-]*)>#"
+            "tokens" : "RegExp::/<\\/([_a-zA-Z][_a-zA-Z0-9\\-]*)>/"
         }
     },
     
     //
     // Syntax model (optional)
     "Syntax" : {
+        // NEW feature
+        // using BNF-like shorthands, instead of multiple grammar configuration objects
         
-        "stringOrNumber" : {
-            "type" : "group",
-            "match" : "either",
-            "tokens" : [ "string", "number", "hexnumber" ] 
-        },
+        "tagAttribute": "attribute '=' (string | number)",
         
-        "tagAttribute" : { 
-            "type" : "group",
-            "match" : "all",
-            "tokens" : [ "attribute", "=", "stringOrNumber" ]
-        },
+        "startTag": "openTag tagAttribute* (closeTag | autoCloseTag)",
         
-        "tagAttributes" : { 
-            "type" : "group",
-            "match" : "zeroOrMore",
-            "tokens" : [ "tagAttribute" ]
-        },
-        
-        "closeOpenTag" : { 
-            "type" : "group",
-            "match" : "either",
-            "tokens" : [ "closeTag",  "autoCloseTag"]
-        },
-        
-        // n-grams define syntax sequences
-        "tags" : { 
-            "type" : "n-gram",
-            "tokens" :[
-                [ "openTag", "tagAttributes", "closeOpenTag" ],
-                [ "endTag" ]
+        "tags": {
+            "type": "ngram",
+            "tokens": [
+                ["startTag"], 
+                ["endTag"]
             ]
-        },
+        }
     },
     
     // what to parse and in what order

@@ -43,8 +43,6 @@ var js_grammar = {
         // general identifiers
         "identifier" : "RegExp::/[_A-Za-z$][_A-Za-z0-9$]*/",
         
-        "this" : "RegExp::/this\\b/",
-        
         "property" : "RegExp::/[_A-Za-z$][_A-Za-z0-9$]*/",
         
         // numbers, in order of matching
@@ -98,7 +96,7 @@ var js_grammar = {
             "tokens" : [
                 "(", ")", "[", "]", "{", "}", ",", "=", ";", "?", ":",
                 "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "++", "--",
-                ">>=", "<<="
+                ">>=", "<<=", ">>>="
             ]
         },
             
@@ -107,6 +105,7 @@ var js_grammar = {
             // enable autocompletion for these tokens, with their associated token ID
             "autocomplete" : true,
             "tokens" : [
+                "this",
                 "true", "false", 
                 "null", "undefined", 
                 "NaN", "Infinity"
@@ -131,7 +130,7 @@ var js_grammar = {
             // enable autocompletion for these tokens, with their associated token ID
             "autocomplete" : true,
             "tokens" : [ 
-                "Object", "Array", "String", "Number", "RegExp", "Exception",
+                "Object", "Function", "Array", "String", "Date", "Number", "RegExp", "Exception",
                 "setTimeout", "setInterval", "alert", "console"
             ]
         }
@@ -141,78 +140,21 @@ var js_grammar = {
     // Syntax model (optional)
     "Syntax" : {
         
-        "literalObject" : {
-            "type" : "group",
-            "match" : "all",
-            "tokens" : [ "{", "literalPropertyValues", "}" ]
-        },
+        "literalProperty" : "string | property",
         
-        "literalArray" : {
-            "type" : "group",
-            "match" : "all",
-            "tokens" : [ "[", "literalValues", "]" ]
-        },
+        "literalValue" : "atom | string | regex | number | identifier | literalArray | literalObject",
         
-        "literalProperty" : {
-            "type" : "group",
-            "match" : "either",
-            "tokens" : [ "string", "property" ]
-        },
+        "literalPropertyValue" : "literalProperty ':' literalValue",
         
         // grammar recursion here
-        "literalValue" : {
-            "type" : "group",
-            "match" : "either",
-            "tokens" : [ "atom", "string", "regex", "number", "identifier", "literalArray", "literalObject" ]
-        },
+        "literalObject" : "'{' (literalPropertyValue (',' literalPropertyValue)*)? '}'",
         
-        "literalValuesRest" : {
-            "type" : "group",
-            "match" : "all",
-            "tokens" : [ ",", "literalValue" ]
-        },
+        // grammar recursion here
+        "literalArray" : "'[' (literalValue (',' literalValue)*)? ']'",
         
-        "literalPropertyValue" : {
-            "type" : "group",
-            "match" : "all",
-            "tokens" : [ "literalProperty", ":", "literalValue" ]
-        },
-        
-        "literalPropertyValuesRest" : {
-            "type" : "group",
-            "match" : "all",
-            "tokens" : [ ",", "literalPropertyValue" ]
-        },
-        
-        "literalValuesRestOptional" : {
-            "type" : "group",
-            "match" : "zeroOrMore",
-            "tokens" : [ "literalValuesRest" ]
-        },
-        
-        "literalPropertyValuesRestOptional" : {
-            "type" : "group",
-            "match" : "zeroOrMore",
-            "tokens" : [ "literalPropertyValuesRest" ]
-        },
-        
-        "literalValues" : {
-            "type" : "ngram",
-            "tokens" : [
-                [ "literalValue", "literalValuesRestOptional" ]
-            ]
-        },
-        
-        "literalPropertyValues" : {
-            "type" : "ngram",
-            "tokens" : [
-                [ "literalPropertyValue", "literalPropertyValuesRestOptional" ]
-            ]
-        },
-        
-        "literalNGram" : {
-            "type" : "n-gram",
-            "tokens" : [
+        "literalStatement" : {
+            "type": "ngram",
+            "tokens": [
                 ["literalObject"],
                 ["literalArray"]
             ]
@@ -228,6 +170,6 @@ var js_grammar = {
         "keyword",
         "operator",
         "atom",
-        "literalNGram"
+        "literalStatement"
     ]
 };

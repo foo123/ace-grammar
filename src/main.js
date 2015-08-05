@@ -11,93 +11,121 @@
 
 // ace supposed to be available
 var _ace = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; }, config: {} }, 
-    ace_require = _ace.require, ace_config = _ace.config
+    
+    ace_require = _ace.require, ace_config = _ace.config,
+
+    // Get current filename/path
+    get_current_path = function( ) {
+        var file = null, path, base, scripts;
+        if ( isNode ) 
+        {
+            // http://nodejs.org/docs/latest/api/globals.html#globals_filename
+            // this should hold the current file in node
+            file = __filename;
+            return { path: __dirname, file: __filename, base: __dirname };
+        }
+        else if ( isWorker )
+        {
+            // https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation
+            // this should hold the current url in a web worker
+            file = self.location.href;
+        }
+        else if ( isBrowser )
+        {
+            // get last script (should be the current one) in browser
+            base = document.location.href.split('#')[0].split('?')[0].split('/').slice(0, -1).join('/');
+            if ((scripts = document.getElementsByTagName('script')) && scripts.length) 
+                file = scripts[scripts.length - 1].src;
+        }
+        
+        if ( file )
+            return { path: file.split('/').slice(0, -1).join('/'), file: file, base: base };
+        return { path: null, file: null, base: null };
+    },
+    
+    this_path = get_current_path( )
 ;
 
 //
 // parser factories
-function WorkerClient( topLevelNamespaces, mod, classname ) 
-{
-    var self = this, require = ace_require, config = ace_config;
-    self.$sendDeltaQueue = self.$sendDeltaQueue.bind(self);
-    self.changeListener = self.changeListener.bind(self);
-    self.onMessage = self.onMessage.bind(self);
-    if (require.nameToUrl && !require.toUrl) require.toUrl = require.nameToUrl;
-
-    var workerUrl;
-    if (config.get("packaged") || !require.toUrl) {
-        workerUrl = config.moduleUrl(mod, "worker");
-    } else {
-        var normalizePath = self.$normalizePath;
-        workerUrl = normalizePath(require.toUrl("ace/worker/worker.js", null, "_"));
-
-        var tlns = {};
-        topLevelNamespaces.forEach(function(ns) {
-            tlns[ns] = normalizePath(require.toUrl(ns, null, "_").replace(/(\.js)?(\?.*)?$/, ""));
-        });
-    }
-    
-    self.$worker = new Worker( workerUrl );
-    
-    self.$worker.postMessage({
-        load: true,
-        ace_worker_base: thisPath.base + '/' + ace_config.moduleUrl("ace/worker/json")
-    });
-
-    self.$worker.postMessage({
-        init : true,
-        tlns: tlns,
-        module: mod,
-        classname: classname
-    });
-
-    self.callbackId = 1;
-    self.callbacks = {};
-
-    self.$worker.onmessage = self.onMessage;
-}
 // extends ace_require("ace/worker/worker_client").WorkerClient
-WorkerClient[PROTO] = Merge(
-    Extend( (ace_require("ace/worker/worker_client").WorkerClient||Object)[PROTO] ), {
-    constructor: WorkerClient
+var WorkerClient = Class(ace_require("ace/worker/worker_client").WorkerClient, {
+    constructor: function WorkerClient( topLevelNamespaces, mod, classname ) {
+        var self = this, require = ace_require, config = ace_config;
+        self.$sendDeltaQueue = self.$sendDeltaQueue.bind(self);
+        self.changeListener = self.changeListener.bind(self);
+        self.onMessage = self.onMessage.bind(self);
+        if (require.nameToUrl && !require.toUrl) require.toUrl = require.nameToUrl;
+
+        var workerUrl;
+        if (config.get("packaged") || !require.toUrl) {
+            workerUrl = config.moduleUrl(mod, "worker");
+        } else {
+            var normalizePath = self.$normalizePath;
+            workerUrl = normalizePath(require.toUrl("ace/worker/worker.js", null, "_"));
+
+            var tlns = {};
+            topLevelNamespaces.forEach(function(ns) {
+                tlns[ns] = normalizePath(require.toUrl(ns, null, "_").replace(/(\.js)?(\?.*)?$/, ""));
+            });
+        }
+        
+        self.$worker = new Worker( workerUrl );
+        
+        self.$worker.postMessage({
+            load: true,
+            ace_worker_base: this_path.base + '/' + ace_config.moduleUrl("ace/worker/json")
+        });
+
+        self.$worker.postMessage({
+            init : true,
+            tlns: tlns,
+            module: mod,
+            classname: classname
+        });
+
+        self.callbackId = 1;
+        self.callbacks = {};
+
+        self.$worker.onmessage = self.onMessage;
+    }
 });
     
+DEFAULTSTYLE = "text";
+DEFAULTERROR = "invalid";
 // extends ace_require('ace/tokenizer').Tokenizer
-function Parser( grammar, LOC ) 
-{
-    var self = this, rxLine;
-    // support comments toggle
-    self.LC = grammar.Comments.line || null;
-    self.BC = grammar.Comments.block ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
-    if ( self.LC )
-    {
-        if ( T_ARRAY & get_type(self.LC) ) 
-            rxLine = self.LC.map( escRegexp ).join( "|" );
-        
-        else 
-            rxLine = escRegexp( self.LC );
-        
-        self.rxLine = new RegExp("^(\\s*)(?:" + rxLine + ") ?");
-    }
-    if ( self.BC )
-    {
-        self.rxStart = new RegExp("^(\\s*)(?:" + escRegexp(self.BC.start) + ")");
-        self.rxEnd = new RegExp("(?:" + escRegexp(self.BC.end) + ")\\s*$");
-    }
+var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
+    constructor: function Parser( grammar, LOC ) {
+        var self = this, rxLine;
+        // support comments toggle
+        self.LC = grammar.Comments.line || null;
+        self.BC = grammar.Comments.block ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
+        if ( self.LC )
+        {
+            if ( T_ARRAY & get_type(self.LC) ) 
+                rxLine = self.LC.map( esc_re ).join( "|" );
+            
+            else 
+                rxLine = esc_re( self.LC );
+            
+            self.rxLine = new RegExp("^(\\s*)(?:" + rxLine + ") ?");
+        }
+        if ( self.BC )
+        {
+            self.rxStart = new RegExp("^(\\s*)(?:" + esc_re(self.BC.start) + ")");
+            self.rxEnd = new RegExp("(?:" + esc_re(self.BC.end) + ")\\s*$");
+        }
 
-    self.DEF = LOC.DEFAULT;
-    self.ERR = grammar.Style.error || LOC.ERROR;
-    
-    // support keyword autocompletion
-    self.Keywords = grammar.Keywords.autocomplete || null;
-    
-    self.Tokens = grammar.Parser || [];
-    self.cTokens = grammar.cTokens.length ? grammar.cTokens : null;
-    self.Style = grammar.Style;
-}
-Parser[PROTO] = Merge(
-     Extend( (ace_require('ace/tokenizer').Tokenizer||Object)[PROTO] ), {
-     constructor: Parser
+        self.DEF = LOC.DEFAULT;
+        self.ERR = grammar.Style.error || LOC.ERROR;
+        
+        // support keyword autocompletion
+        self.Keywords = grammar.Keywords.autocomplete || null;
+        
+        self.Tokens = grammar.Parser || [];
+        self.cTokens = grammar.cTokens.length ? grammar.cTokens : null;
+        self.Style = grammar.Style;
+    }
     
     ,ERR: null
     ,DEF: null
@@ -243,7 +271,7 @@ Parser[PROTO] = Merge(
                 {
                     style = Style[type] || DEFAULT;
                     // action error
-                    if ( tokenizer.ACT )
+                    if ( tokenizer.ACTER )
                     {
                         // empty the stack
                         stack.empty('sID', tokenizer.sID);
@@ -294,7 +322,7 @@ Parser[PROTO] = Merge(
                 {
                     style = Style[type] || DEFAULT;
                     // action error
-                    if ( tokenizer.ACT )
+                    if ( tokenizer.ACTER )
                     {
                         // empty the stack
                         stack.empty('sID', tokenizer.sID);
@@ -385,7 +413,7 @@ Parser[PROTO] = Merge(
         } 
         else 
         {
-            var lineCommentStart = (T_ARRAY == get_type(self.LC)) ? self.LC[0] : self.LC,
+            var lineCommentStart = (T_ARRAY === get_type(self.LC)) ? self.LC[0] : self.LC,
                 regexpLine = self.rxLine,
                 commentWithSpace = lineCommentStart + " ",
                 minEmptyLength
@@ -549,14 +577,13 @@ function worker_init( )
         function( require, exports, module ) {
         var WorkerMirror = require("./worker/mirror").Mirror, AceGrammarWorker;
         
-        exports.AceGrammarWorker = AceGrammarWorker = function AceGrammarWorker( sender ) {
-            var self = this;
-            WorkerMirror.call( self, sender );
-            self.setTimeout( 500 );
-        };
         // extends require("./worker/mirror").Mirror
-        AceGrammarWorker[PROTO] = Merge(Extend(WorkerMirror[PROTO]), {
-             constructor: AceGrammarWorker
+        exports.AceGrammarWorker = AceGrammarWorker = Class(WorkerMirror, {
+            constructor: function AceGrammarWorker( sender ) {
+                var self = this;
+                WorkerMirror.call( self, sender );
+                self.setTimeout( 500 );
+            }
             
             ,parser: null
             
@@ -565,7 +592,7 @@ function worker_init( )
                 var self = this;
                 //console.log('Init called '+id);
                 //console.log(grammar);
-                self.parser = new Parser( parseGrammar( grammar ), { 
+                self.parser = new Parser( parse_grammar( grammar ), { 
                     DEFAULT: DEFAULTSTYLE, 
                     ERROR: DEFAULTERROR 
                 });
@@ -641,10 +668,10 @@ if ( isWorker )
     };
 }
 
-function getMode( grammar, DEFAULT ) 
+function get_mode( grammar, DEFAULT ) 
 {
     var grammar_copy = clone( grammar ),
-        parser = new Parser( parseGrammar( grammar ), { 
+        parser = new Parser( parse_grammar( grammar ), { 
         // default return code for skipped or not-styled tokens
         // 'text' should be used in most cases
         DEFAULT: DEFAULT || DEFAULTSTYLE,
@@ -673,10 +700,14 @@ function getMode( grammar, DEFAULT )
 
         createWorker: function( session ) {
             
-            if ( !mode.supportGrammarAnnotations ) return null;
+            if ( !mode.supportGrammarAnnotations ) 
+            {
+                session.clearAnnotations( );
+                return null;
+            }
             
             // add this worker as an ace custom module
-            ace_config.setModuleUrl("ace/grammar_worker", thisPath.file);
+            ace_config.setModuleUrl("ace/grammar_worker", this_path.file);
             var worker = new WorkerClient(['ace'], "ace/grammar_worker", 'AceGrammarWorker');
             worker.attachToDocument( session.getDocument( ) );
             // create a worker for this grammar
@@ -770,8 +801,6 @@ function getMode( grammar, DEFAULT )
 * ```
 *
 [/DOC_MARKDOWN]**/
-DEFAULTSTYLE = "text";
-DEFAULTERROR = "invalid";
 var AceGrammar = exports['@@MODULE_NAME@@'] = {
     
     VERSION: "@@VERSION@@",
@@ -803,7 +832,7 @@ var AceGrammar = exports['@@MODULE_NAME@@'] = {
     * However user can use this method to cache a parsedgrammar to be used later.
     * Already parsed grammars are NOT re-parsed when passed through the parse method again
     [/DOC_MARKDOWN]**/
-    parse: parseGrammar,
+    parse: parse_grammar,
     
     // get an ACE-compatible syntax-highlight mode from a grammar
     /**[DOC_MARKDOWN]
@@ -817,5 +846,5 @@ var AceGrammar = exports['@@MODULE_NAME@@'] = {
     * DEFAULT is the default return value ("text" by default) for things that are skipped or not styled
     * In general there is no need to set this value, unless you need to return something else
     [/DOC_MARKDOWN]**/
-    getMode: getMode
+    getMode: get_mode
 };
