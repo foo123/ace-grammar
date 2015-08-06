@@ -34,12 +34,12 @@ Code Indentation, Behaviours are ACE defaults, looking for ways to add more elab
 
 ###Features
 
-* A grammar can **extend other grammars** (so arbitrary variations and dialects can be parsed more easily)
-* [`Grammar`](/grammar-reference.md) includes: `Style` Model , `Lex` Model and `Syntax` Model (optional), plus a couple of *settings* (see examples)
-* `Grammar` **specification can be minimal** (defaults will be used) (see example grammars)
-* [`Grammar Syntax Model`](/grammar-reference.md) can enable highlight in a more context-specific way, plus detect possible *syntax errors*
-* [`Grammar Syntax Model`](/grammar-reference.md) can contain *recursive references* (see `/test/grammar-js-recursion.html`)
-* [`Grammar Syntax Model`](/grammar-reference.md) can be specificed using [`PEG`](https://en.wikipedia.org/wiki/Parsing_expression_grammar)-like notation or [`BNF`](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form)-like notation  (**NEW feature**)
+* A `Grammar` can **extend other `Grammars`** (so arbitrary `variations` and `dialects` can be handled more easily)
+* [`Grammar`](/grammar-reference.md) includes: **`Style Model`** , **`Lex Model`** and **`Syntax Model`** (optional), plus a couple of *settings* (see examples)
+* **`Grammar` specification can be minimal** (defaults will be used) (see example grammars)
+* `Grammar.Syntax Model` can enable highlight in a more context-specific way, plus detect possible *syntax errors*
+* `Grammar.Syntax Model` can contain **recursive references** (see `/test/grammar-js-recursion.html`)
+* `Grammar.Syntax Model` can be (fully) specificed using [`PEG`](https://en.wikipedia.org/wiki/Parsing_expression_grammar)-like notation or [`BNF`](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form)-like notation  (**NEW feature**)
 * Generated highlight modes can support **toggle comments** and **keyword autocompletion** functionality if defined in the grammar
 * Generated highlight modes can support **lint-like syntax-annotation** functionality generated from the grammar
 * Generated parsers are **optimized for speed and size**
