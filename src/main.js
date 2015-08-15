@@ -14,6 +14,10 @@ var _ace = (typeof ace !== 'undefined') ? ace : { require: function() { return {
     
     ace_require = _ace.require, ace_config = _ace.config,
 
+    isNode = !!(("undefined" !== typeof global) && ("[object global]" === toString.call(global))),
+    isBrowser = !!(!isNode && ("undefined" !== typeof navigator)),
+    isWorker = !!(isBrowser && ("function" === typeof importScripts) && (navigator instanceof WorkerNavigator)),
+    
     // Get current filename/path
     get_current_path = function( ) {
         var file = null, path, base, scripts;
@@ -804,6 +808,20 @@ function get_mode( grammar, DEFAULT )
 var AceGrammar = exports['@@MODULE_NAME@@'] = {
     
     VERSION: "@@VERSION@@",
+    
+    // clone a grammar
+    /**[DOC_MARKDOWN]
+    * __Method__: `clone`
+    *
+    * ```javascript
+    * cloned = AceGrammar.clone( grammar [, deep=true] );
+    * ```
+    *
+    * Clone (deep) a `grammar`
+    *
+    * Utility to clone objects efficiently
+    [/DOC_MARKDOWN]**/
+    clone: clone,
     
     // extend a grammar using another base grammar
     /**[DOC_MARKDOWN]
