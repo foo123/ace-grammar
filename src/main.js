@@ -159,43 +159,67 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
         return self;
     }
     
-    ,parse: function( code ) {
+    ,parse: function( code, parse_type ) {
         code = code || "";
-        var self = this, lines = code.split(newline_re), l = lines.length, i, tokens = [], data;
-        data = { state: new State( ), tokens: null };
+        var self = this, lines = code.split(newline_re), l = lines.length, i, 
+            tokens = null, data, ret, parse_errors, parse_tokens;
         
-        for (i=0; i<l; i++)
+        parse_type = parse_type || TOKENS;
+        parse_errors = !!(parse_type&ERRORS);
+        parse_tokens = !!(parse_type&TOKENS);
+        
+        data = {state:new State(0, 0, parse_errors), tokens:null};
+        
+        if ( parse_tokens )
         {
-            data = self.getLineTokens(lines[i], data.state, i);
-            tokens.push(data.tokens);
+            tokens = [];
+            for (i=0; i<l; i++)
+            {
+                //data.state.line = i;
+                data = self.getLineTokens(lines[i], data.state, i);
+                tokens.push(data.tokens);
+            }
         }
-        return tokens;
+        else //if ( parse_errors )
+        {
+            for (i=0; i<l; i++)
+            {
+                //data.state.line = i;
+                data = self.getLineTokens(lines[i], data.state, i);
+            }
+        }
+        if ( parse_tokens && parse_errors ) ret = {tokens:tokens, errors:data.state.err};
+        else if ( parse_tokens ) ret = tokens;
+        else ret = data.state.err;
+        data.state.dispose();
+        return ret;
     }
     
     // ACE Tokenizer compatible
     ,getLineTokens: function( line, state, row ) {
         
-        var self = this, i, rewind, rewind2, ci,
-            tokenizer, interleavedCommentTokens = self.cTokens, tokens = self.Tokens, numTokens = tokens.length, 
-            aceTokens, token, type, style, currentError = null,
-            stream, stack, DEFAULT = self.DEF, ERROR = self.ERR, Style = self.Style
+        var self = this, i, rewind, rewind2, ci, tokenizer, action,
+            interleavedCommentTokens = self.cTokens, tokens = self.Tokens, numTokens = tokens.length, 
+            aceTokens, token, type, style, pos, lin,
+            stream, stack, DEFAULT = self.DEF, ERR = self.ERR, Style = self.Style
         ;
         
         aceTokens = []; 
         stream = new Stream( line );
-        state = state ? state.clone( 1 ) : new State( 1, 1 );
-        state.l = 1+row;
+        state = state ? state.clone( 1 ) : new State( 0, 1 );
+        state.line = row;
         stack = state.stack;
-        token = { type: null, value: "", error: null };
-        type = null;
-        style = null;
+        token = {type:null, value:""};
+        type = null; style = null;
         
         // if EOL tokenizer is left on stack, pop it now
-        if ( stream.sol() && !stack.isEmpty() && T_EOL === stack.peek().tt ) 
+        if ( stream.sol() && !stack.isEmpty() && T_EOL === stack.peek().type ) 
         {
             stack.pop();
         }
         
+        lin = state.line;
+        pos = stream.pos;
         while ( !stream.eol() )
         {
             rewind = 0;
@@ -203,8 +227,8 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             if ( style && style !== token.type )
             {
                 if ( token.type ) aceTokens.push( token );
-                token = { type: style, value: stream.cur(1), error: currentError };
-                currentError = null;
+                token = {type:style, value:stream.cur(1)};
+                pos = stream.pos;
             }
             else if ( token.type )
             {
@@ -213,10 +237,9 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             style = false;
             
             // check for non-space tokenizer before parsing space
-            if ( (stack.isEmpty() || (T_NONSPACE !== stack.peek().tt)) && stream.spc() )
+            if ( (stack.isEmpty() || (T_NONSPACE !== stack.peek().type)) && stream.spc() )
             {
-                state.t = type = DEFAULT;
-                style = DEFAULT;
+                type = DEFAULT; style = DEFAULT;
                 continue;
             }
             
@@ -228,7 +251,7 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                     while ( ci < interleavedCommentTokens.length )
                     {
                         tokenizer = interleavedCommentTokens[ci++];
-                        state.t = type = tokenizer.get(stream, state);
+                        type = tokenizer.get(stream, state);
                         if ( false !== type )
                         {
                             style = Style[type] || DEFAULT;
@@ -243,23 +266,23 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                     }
                 }
             
+                pos = stream.pos;
                 tokenizer = stack.pop();
-                state.t = type = tokenizer.get(stream, state);
+                type = tokenizer.get(stream, state);
             
                 // match failed
                 if ( false === type )
                 {
                     // error
-                    if ( tokenizer.ERR || tokenizer.REQ )
+                    if ( tokenizer.status&REQUIRED_OR_ERROR )
                     {
                         // empty the stack
-                        stack.empty('sID', tokenizer.sID);
+                        stack.empty('$id', tokenizer.$id);
                         // skip this character
                         stream.nxt();
                         // generate error
-                        state.t = type = ERROR;
-                        style = ERROR;
-                        currentError = tokenizer.err();
+                        type = ERR; style = ERR;
+                        tokenizer.err(state, lin, pos, lin, stream.pos);
                         rewind = 1;
                         break;
                     }
@@ -274,15 +297,21 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                 else if ( true !== type )
                 {
                     style = Style[type] || DEFAULT;
-                    // action error
-                    if ( tokenizer.ACTER )
+                    // action token follows, execute action on current token
+                    while ( !stack.isEmpty() && T_ACTION === stack.peek().type )
                     {
-                        // empty the stack
-                        stack.empty('sID', tokenizer.sID);
-                        // generate error
-                        state.t = type = ERROR;
-                        style = ERROR;
-                        currentError = tokenizer.err();
+                        action = stack.pop();
+                        action.get(stream, state);
+                        // action error
+                        if ( action.status&ERROR )
+                        {
+                            // empty the stack
+                            stack.empty('$id', /*action*/tokenizer.$id);
+                            // generate error
+                            //type = ERR; style = ERR;
+                            //action.err(state, lin, pos, lin, stream.pos);
+                            break;
+                        }
                     }
                     rewind = 1;
                     break;
@@ -294,23 +323,23 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             
             for (i=0; i<numTokens; i++)
             {
+                pos = stream.pos;
                 tokenizer = tokens[i];
-                state.t = type = tokenizer.get(stream, state);
+                type = tokenizer.get(stream, state);
                 
                 // match failed
                 if ( false === type )
                 {
                     // error
-                    if ( tokenizer.ERR || tokenizer.REQ )
+                    if ( tokenizer.status&REQUIRED_OR_ERROR )
                     {
                         // empty the stack
-                        stack.empty('sID', tokenizer.sID);
+                        stack.empty('$id', tokenizer.$id);
                         // skip this character
                         stream.nxt();
                         // generate error
-                        state.t = type = ERROR;
-                        style = ERROR;
-                        currentError = tokenizer.err();
+                        type = ERR; style = ERR;
+                        tokenizer.err(state, lin, pos, lin, stream.pos);
                         rewind = 1;
                         break;
                     }
@@ -325,15 +354,21 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                 else if ( true !== type )
                 {
                     style = Style[type] || DEFAULT;
-                    // action error
-                    if ( tokenizer.ACTER )
+                    // action token follows, execute action on current token
+                    while ( !stack.isEmpty() && T_ACTION === stack.peek().type )
                     {
-                        // empty the stack
-                        stack.empty('sID', tokenizer.sID);
-                        // generate error
-                        state.t = type = ERROR;
-                        style = ERROR;
-                        currentError = tokenizer.err();
+                        action = stack.pop();
+                        action.get(stream, state);
+                        // action error
+                        if ( action.status&ERROR )
+                        {
+                            // empty the stack
+                            stack.empty('$id', /*action*/tokenizer.$id);
+                            // generate error
+                            //type = ERR; style = ERR;
+                            //action.err(state, lin, pos, lin, stream.pos);
+                            break;
+                        }
                     }
                     rewind = 1;
                     break;
@@ -344,16 +379,13 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             if ( stream.eol() ) break;
             
             // unknown, bypass
-            stream.nxt();
-            state.t = type = DEFAULT;
-            style = DEFAULT;
+            stream.nxt(); type = DEFAULT; style = DEFAULT;
         }
         
         if ( style && style !== token.type )
         {
             if ( token.type ) aceTokens.push( token );
-            aceTokens.push( { type: style, value: stream.cur(1), error: currentError } );
-            currentError = null;
+            aceTokens.push( {type:style, value:stream.cur(1)} );
         }
         else if ( token.type )
         {
@@ -362,10 +394,8 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
         }
         token = null;
         
-        //console.log(aceTokens);
-        
         // ACE Tokenizer compatible
-        return { state: state, tokens: aceTokens };
+        return {state:state, tokens:aceTokens};
     }
     
     ,tCL: function( state, session, startRow, endRow ) {
@@ -606,8 +636,7 @@ function worker_init( )
             
             ,onUpdate: function( ) {
                 var self = this, sender = self.sender, parser = self.parser,
-                    code, linetokens, tokens, errors,
-                    line, lines, t, token, column, errorFound = 0
+                    code, code_errors, err, error, errors
                 ;
                 
                 if ( !parser )
@@ -623,37 +652,30 @@ function worker_init( )
                     return;
                 }
                 
-                errors = [];
-                linetokens = parser.parse( code );
-                lines = linetokens.length;
-                
-                for (line=0; line<lines; line++) 
+                code_errors = parser.parse( code, ERRORS );
+                if ( !code_errors )
                 {
-                    tokens = linetokens[ line ];
-                    if ( !tokens || !tokens.length )  continue;
-                    
-                    column = 0;
-                    for (t=0; t<tokens.length; t++)
-                    {
-                        token = tokens[t];
-                        
-                        if ( parser.ERR == token.type )
-                        {
-                            errors.push({
-                                row: line,
-                                column: column,
-                                text: token.error || "Syntax Error",
-                                type: "error",
-                                raw: token.error || "Syntax Error"
-                            });
-                            
-                            errorFound = 1;
-                        }
-                        column += token.value.length;
-                    }
+                    sender.emit( "ok", null );
+                    return;
                 }
                 
-                if ( errorFound )  sender.emit("error", errors);
+                errors = [];
+                for (err in code_errors)
+                {
+                    if ( !code_errors.hasOwnProperty(err) ) continue;
+                    
+                    error = code_errors[err];
+                    errors.push({
+                        row: error[0],
+                        column: error[1],
+                        text: error[4] || "Syntax Error",
+                        type: "error",
+                        raw: error[4] || "Syntax Error",
+                        range: [error[0],error[1],error[2],error[3]]
+                    });
+                }
+                
+                if ( errors.length )  sender.emit("error", errors);
                 else  sender.emit("ok", null);
             }
         });
@@ -680,7 +702,47 @@ function get_mode( grammar, DEFAULT )
         // 'text' should be used in most cases
         DEFAULT: DEFAULT || DEFAULTSTYLE,
         ERROR: DEFAULTERROR
-    }), mode;
+    }), mode, id = uuid("ace_grammar_mode");
+    
+    var
+    clearMarkers = function( session ) {
+        if ( !session[id + '$markers'] ) session[id + '$markers'] = [];
+        var i, markers = session[id + '$markers'];
+        if ( markers && markers.length )
+        {
+            for (i=0; i<markers.length; i++)
+                session.removeMarker( markers[i] );
+        }
+        markers.length = 0;
+    },
+    updateMarkers = function( session, errors ) {
+        var i, l = errors.length, err, Range = ace_require('ace/range').Range, markers;
+        clearMarkers( session );
+        markers = session[id + '$markers'];
+        for (i=0; i<l; i++)
+        {
+            err = errors[i];
+            if ( err.range )
+            {
+                markers.push(
+                session.addMarker(
+                    new Range(err.range[0], err.range[1], err.range[2], err.range[3]),
+                    "ace_error-marker",
+                    "text",
+                    0/*back*/
+                ));
+                delete err.range;
+            }
+        }
+    },
+    clearAnnotations = function( session ) {
+        clearMarkers( session );
+        session.clearAnnotations( );
+    },
+    updateAnnotations = function( session, errors ) {
+        updateMarkers( session, errors );
+        session.setAnnotations( errors );
+    };
     
     // ACE-compatible Mode
     mode = {
@@ -702,11 +764,13 @@ function get_mode( grammar, DEFAULT )
         //HighlightRules: null,
         //$behaviour: parser.$behaviour || null,
 
+        $id: id,
+        
         createWorker: function( session ) {
             
             if ( !mode.supportGrammarAnnotations ) 
             {
-                session.clearAnnotations( );
+                clearAnnotations( session );
                 return null;
             }
             
@@ -719,12 +783,13 @@ function get_mode( grammar, DEFAULT )
                 //console.log('Init returned');
                 // hook worker to enable error annotations
                 worker.on("error", function( e ) {
-                    //console.log(e.data);
-                    session.setAnnotations( e.data );
+                    var errors = e.data;
+                    //console.log(errors);
+                    updateAnnotations( session, errors )
                 });
 
                 worker.on("ok", function() {
-                    session.clearAnnotations( );
+                    clearAnnotations( session );
                 });
             });
             return worker;

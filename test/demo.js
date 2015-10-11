@@ -1,5 +1,7 @@
 function ace_grammar_demo(_editor, code, grammar)
 {
+    document.getElementById('version').innerHTML = AceGrammar.VERSION;
+    
     var editor = ace.edit(_editor);
     // 2. parse the grammar into an ACE syntax-highlight mode
     var mode = AceGrammar.getMode( grammar );

@@ -1,37 +1,36 @@
 /**
 *
 *   AceGrammar
-*   @version: 1.0.3
+*   @version: 2.0.0
 *
 *   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
 *
 **/!function( root, name, factory ) {
-    "use strict";
-    
-    //
-    // export the module, umd-style (no other dependencies)
-    var isCommonJS = ("object" === typeof(module)) && module.exports, 
-        isAMD = ("function" === typeof(define)) && define.amd, m;
-    
-    // CommonJS, node, etc..
-    if ( isCommonJS ) 
-        module.exports = (module.$deps = module.$deps || {})[ name ] = module.$deps[ name ] || (factory.call( root, {NODE:module} ) || 1);
-    
-    // AMD, requireJS, etc..
-    else if ( isAMD && ("function" === typeof(require)) && ("function" === typeof(require.specified)) && require.specified(name) ) 
-        define( name, ['require', 'exports', 'module'], function( require, exports, module ){ return factory.call( root, {AMD:module} ); } );
-    
-    // browser, web worker, etc.. + AMD, other loaders
-    else if ( !(name in root) ) 
-        (root[ name ] = (m=factory.call( root, {} ) || 1)) && isAMD && define( name, [], function( ){ return m; } );
+"use strict";
 
+//
+// export the module, umd-style (no other dependencies)
+var isCommonJS = ("object" === typeof(module)) && module.exports, 
+    isAMD = ("function" === typeof(define)) && define.amd, m;
+
+// CommonJS, node, etc..
+if ( isCommonJS ) 
+    module.exports = (module.$deps = module.$deps || {})[ name ] = module.$deps[ name ] || (factory.call( root, {NODE:module} ) || 1);
+
+// AMD, requireJS, etc..
+else if ( isAMD && ("function" === typeof(require)) && ("function" === typeof(require.specified)) && require.specified(name) ) 
+    define( name, ['require', 'exports', 'module'], function( require, exports, module ){ return factory.call( root, {AMD:module} ); } );
+
+// browser, web worker, etc.. + AMD, other loaders
+else if ( !(name in root) ) 
+    (root[ name ] = (m=factory.call( root, {} ) || 1)) && isAMD && define( name, [], function( ){ return m; } );
 
 }(  /* current root */          this, 
     /* module name */           "AceGrammar",
     /* module factory */        function( exports ) {
-        
-    /* main code starts here */
+    
+/* main code starts here */
 
 "use strict";
 
@@ -41,20 +40,35 @@ var
     DEFAULTSTYLE,
     DEFAULTERROR,
     
-    ACTION_PUSH = 1, ACTION_POP = 2,
+    TOKENS = 1, ERRORS = 2,
+    REQUIRED = 4, ERROR = 8,
+    CLEAR_REQUIRED = ~REQUIRED, CLEAR_ERROR = ~ERROR,
+    REQUIRED_OR_ERROR = REQUIRED | ERROR,
     
     //
     // javascript variable types
     INF = Infinity,
     
     //
-    // matcher types
-    T_SIMPLEMATCHER = 2,
-    T_COMPOSITEMATCHER = 4,
-    T_BLOCKMATCHER = 8,
+    // action types
+    A_ERROR = 4,
+    A_UNIQUE = 8,
+    A_PUSH = 16,
+    A_POP = 32,
+    A_EMPTY = 64,
+    A_INDENT = 128,
+    A_OUTDENT = 256,
+    A_BLOCKINDENT = 512,
+    
+    //
+    // pattern types
+    P_SIMPLE = 2,
+    P_COMPOSITE = 4,
+    P_BLOCK = 8,
     
     //
     // token types
+    T_SPACE = 0,
     T_ERROR = 4,
     T_DEFAULT = 8,
     T_SIMPLE = 16,
@@ -65,8 +79,8 @@ var
     T_ESCBLOCK = 33,
     T_COMMENT = 34,
     T_EITHER = 64,
-    T_ALL = 128,
-    T_SEQUENCE = T_ALL,
+    T_SEQUENCE = 128,
+    T_ALL = T_SEQUENCE,
     T_REPEATED = 256,
     T_ZEROORONE = 257,
     T_ZEROORMORE = 258,
@@ -74,21 +88,39 @@ var
     T_GROUP = 512,
     T_NGRAM = 1024,
     T_SEQUENCE_OR_NGRAM = T_SEQUENCE | T_NGRAM,
-    T_INDENT = 2048,
-    T_DEDENT = 4096,
+    T_ACTION = 2048,
     
     //
     // tokenizer types
     groupTypes = {
-        EITHER: T_EITHER, ALL: T_ALL, SEQUENCE: T_SEQUENCE,
-        ZEROORONE: T_ZEROORONE, ZEROORMORE: T_ZEROORMORE, ONEORMORE: T_ONEORMORE, 
-        REPEATED: T_REPEATED
+    EITHER: T_EITHER,
+    ALL: T_ALL,
+    SEQUENCE: T_SEQUENCE,
+    ZEROORONE: T_ZEROORONE,
+    ZEROORMORE: T_ZEROORMORE,
+    ONEORMORE: T_ONEORMORE,
+    REPEATED: T_REPEATED
     },
     
     tokenTypes = {
-        INDENT: T_INDENT, DEDENT: T_DEDENT,
-        BLOCK: T_BLOCK, COMMENT: T_COMMENT, ESCAPEDBLOCK: T_ESCBLOCK, 
-        SIMPLE: T_SIMPLE, GROUP: T_GROUP, NGRAM: T_NGRAM
+    ACTION: T_ACTION,
+    BLOCK: T_BLOCK,
+    COMMENT: T_COMMENT,
+    ESCAPEDBLOCK: T_ESCBLOCK,
+    SIMPLE: T_SIMPLE,
+    GROUP: T_GROUP,
+    NGRAM: T_NGRAM
+    },
+    
+    actionTypes = {
+    ERROR: A_ERROR,
+    UNIQUE: A_UNIQUE,
+    PUSH: A_PUSH,
+    POP: A_POP,
+    EMPTY: A_EMPTY,
+    INDENT: A_INDENT,
+    OUTDENT: A_OUTDENT,
+    BLOCKINDENT: A_BLOCKINDENT
     }
 ;
 
@@ -144,7 +176,10 @@ var undef = undefined,
                     v = o2[p]; T = get_type( v );
                     
                     // shallow copy for numbers, better ??
-                    if ( T_NUM & T ) o[p] = 0 + v;  
+                    if ( T_NUM & T ) o[p] = 0 + v;
+                    
+                    // shallow copy for dates, better ??
+                    else if ( T_DATE & T ) o[p] = new Date(v);
                     
                     // shallow copy for arrays or strings, better ??
                     else if ( T_STR_OR_ARRAY & T ) o[p] = v.slice();  
@@ -194,8 +229,23 @@ var undef = undefined,
     },
     
     clone = function( o, deep ) {
-        var T = get_type( o ), T2, co, k, l;
-        deep = false !== deep;
+        var T = get_type( o ), T2, co, k, l, level = 0;
+        if ( T_NUM === get_type(deep) )
+        {
+            if ( 0 < deep )
+            {
+                level = deep;
+                deep = true; 
+            }
+            else
+            {
+                deep = false;
+            }
+        }
+        else
+        {
+            deep = false !== deep;
+        }
         
         if ( T_OBJ === T )
         {
@@ -205,8 +255,9 @@ var undef = undefined,
                 if ( !o[HAS](k) || !o[IS_ENUM](k) ) continue;
                 T2 = get_type( o[k] );
                 
-                if ( T_OBJ === T2 )         co[k] = deep ? clone( o[k], deep ) : o[k];
-                else if ( T_ARRAY === T2 )  co[k] = deep ? clone( o[k], deep ) : o[k].slice();
+                if ( T_OBJ === T2 )         co[k] = deep ? clone( o[k], level>0 ? level-1 : deep ) : o[k];
+                else if ( T_ARRAY === T2 )  co[k] = deep ? clone( o[k], level>0 ? level-1 : deep ) : o[k].slice();
+                else if ( T_DATE & T2 )     co[k] = new Date(o[k]);
                 else if ( T_STR & T2 )      co[k] = o[k].slice();
                 else if ( T_NUM & T2 )      co[k] = 0 + o[k];
                 else                        co[k] = o[k]; 
@@ -220,12 +271,17 @@ var undef = undefined,
             {
                 T2 = get_type( o[k] );
                 
-                if ( T_OBJ === T2 )         co[k] = deep ? clone( o[k], deep ) : o[k];
-                else if ( T_ARRAY === T2 )  co[k] = deep ? clone( o[k], deep ) : o[k].slice();
+                if ( T_OBJ === T2 )         co[k] = deep ? clone( o[k], level>0 ? level-1 : deep ) : o[k];
+                else if ( T_ARRAY === T2 )  co[k] = deep ? clone( o[k], level>0 ? level-1 : deep ) : o[k].slice();
+                else if ( T_DATE & T2 )     co[k] = new Date(o[k]);
                 else if ( T_STR & T2 )      co[k] = o[k].slice();
                 else if ( T_NUM & T2 )      co[k] = 0 + o[k];
                 else                        co[k] = o[k]; 
             }
+        }
+        else if ( T_DATE & T )
+        {
+            co = new Date(o);
         }
         else if ( T_STR & T )
         {
@@ -297,18 +353,39 @@ var undef = undefined,
         return s.replace(escaped_re, '\\$1');
     },
     
-    replacement_re = /\$(\d{1,2})/g,
-    group_replace = function( pattern, token ) {
-        var parts, i, l, replacer;
-        replacer = function(m, d){
-            // the regex is wrapped in an additional group, 
-            // add 1 to the requested regex group transparently
-            return token[ 1 + parseInt(d, 10) ];
-        };
-        parts = pattern.split('$$');
-        l = parts.length;
-        for (i=0; i<l; i++) parts[i] = parts[i].replace(replacement_re, replacer);
-        return parts.join('$');
+    group_replace = function( pattern, token, raw ) {
+        var i, l, c, g, replaced, offset = true === raw ? 0 : 1;
+        if ( T_STR & get_type(token) ) { token = [token, token]; offset = 0; }
+        l = pattern.length; replaced = ''; i = 0;
+        while ( i<l )
+        {
+            c = pattern.charAt(i);
+            if ( (i+1<l) && '$' === c )
+            {
+                g = pattern.charCodeAt(i+1);
+                if ( 36 === g ) // escaped $ character
+                {
+                    replaced += '$';
+                    i += 2;
+                }
+                else if ( 48 <= g && g <= 57 ) // group between 0 and 9
+                {
+                    replaced += token[ offset + g - 48 ] || '';
+                    i += 2;
+                }
+                else
+                {
+                    replaced += c;
+                    i += 1;
+                }
+            }
+            else
+            {
+                replaced += c;
+                i += 1;
+            }
+        }
+        return replaced;
     },
     
     trim_re = /^\s+|\s+$/g,
@@ -333,12 +410,12 @@ var undef = undefined,
     get_re = function(r, rid, cachedRegexes)  {
         if ( !r || (T_NUM === get_type(r)) ) return r;
         
-        var l = (rid) ? (rid.length||0) : 0, i;
+        var l = rid ? (rid.length||0) : 0, i;
         
-        if ( l && rid == r.substr(0, l) ) 
+        if ( l && rid === r.substr(0, l) ) 
         {
-            var regexSource = r.substr(l), delim = regexSource[0], flags = '',
-                regexBody, regexID, regex, chars, i, ch
+            var regexSource = r.substr(l), delim = regexSource.charAt(0), flags = '',
+                regexBody, regexID, regex, i, ch
             ;
             
             // allow regex to have delimiters and flags
@@ -346,27 +423,19 @@ var undef = undefined,
             i = regexSource.length;
             while ( i-- )
             {
-                ch = regexSource[i];
-                if (delim == ch) 
-                    break;
-                else if ('i' == ch.toLowerCase() ) 
-                    flags = 'i';
+                ch = regexSource.charAt(i);
+                if ( delim === ch ) break;
+                else if ('i' === ch.toLowerCase() ) flags = 'i';
             }
             regexBody = regexSource.substring(1, i);
             regexID = "^(" + regexBody + ")";
-            //console.log([regexBody, flags]);
             
             if ( !cachedRegexes[ regexID ] )
             {
                 regex = new RegExp( regexID, flags );
-                /*chars = new RegexAnalyzer( regex ).peek();
-                if ( null !== chars.peek && !Keys(chars.peek).length )  chars.peek = null;
-                if ( null !== chars.negativepeek && !Keys(chars.negativepeek).length )  chars.negativepeek = null;*/
-                // remove RegexAnalyzer dependency
-                chars = {peek:null,negativepeek:null};
                 
                 // shared, light-weight
-                cachedRegexes[ regexID ] = [ regex, chars ];
+                cachedRegexes[ regexID ] = regex;
             }
             
             return cachedRegexes[ regexID ];
@@ -378,17 +447,10 @@ var undef = undefined,
     },
     
     get_combined_re = function(tokens, boundary)  {
-        var peek = { }, i, l, b = "", bT = get_type(boundary);
-        if ( T_STR === bT || T_CHAR === bT ) b = boundary;
-        var combined = tokens
-                    .sort(by_length)
-                    .map(function( t ) {
-                        peek[ t.charAt(0) ] = 1;
-                        return esc_re( t );
-                    })
-                    .join("|")
-                ;
-        return [ new RegExp("^(" + combined + ")"+b), { peek: peek, negativepeek: null }, 1 ];
+        var b = "", combined;
+        if ( T_STR & get_type(boundary) ) b = boundary;
+        combined = tokens.sort( by_length ).map( esc_re ).join( "|" );
+        return [ new RegExp("^(" + combined + ")"+b), 1 ];
     },
     
     _id_ = 0, 
@@ -449,121 +511,67 @@ var Stream = Class({
         return this.pos >= this.s.length; 
     }
     
-    // char match
-    ,chr: function( pattern, eat ) {
-        var self = this, ch = self.s.charAt(self.pos) || null;
-        if (ch && pattern === ch) 
-        {
-            if (false !== eat) 
-            {
-                self.pos += 1;
-                if ( self._ ) self._.pos = self.pos;
-            }
-            return ch;
-        }
-        return false;
-    }
-    
-    // char list match
-    ,chl: function( pattern, eat ) {
-        var self = this, ch = self.s.charAt(self.pos) || null;
-        if ( ch && (-1 < pattern.indexOf( ch )) ) 
-        {
-            if (false !== eat) 
-            {
-                self.pos += 1;
-                if ( self._ ) self._.pos = self.pos;
-            }
-            return ch;
-        }
-        return false;
-    }
-    
-    // string match
-    ,str: function( pattern, startsWith, eat ) {
-        var self = this, len, pos = self.pos, str = self.s, ch = str.charAt(pos) || null;
-        if ( ch && startsWith[ ch ] )
-        {
-            len = pattern.length; 
-            if ( pattern === str.substr(pos, len) ) 
-            {
-                if (false !== eat) 
-                {
-                    self.pos += len;
-                    if ( self._ ) self._.pos = self.pos;
-                }
-                return pattern;
-            }
-        }
-        return false;
-    }
-    
-    // regex match
-    ,rex: function( pattern, startsWith, notStartsWith, group, eat ) {
-        var self = this, match, pos = self.pos, str = self.s, ch = str.charAt(pos) || null;
-        // remove RegexAnalyzer dependency
-        /*if ( ch && ( startsWith && startsWith[ ch ] ) || ( notStartsWith && !notStartsWith[ ch ] ) )
-        {*/
-            match = str.slice( pos ).match( pattern );
-            if (!match || match.index > 0) return false;
-            if ( false !== eat ) 
-            {
-                self.pos += match[group||0].length;
-                if ( self._ ) self._.pos = self.pos;
-            }
-            return match;
-        /*}
-        return false;*/
+    // skip to end
+    ,end: function( ) {
+        var self = this;
+        self.pos = self.s.length;
+        return self;
     }
 
+    // move pointer forward/backward n steps
+    ,mov: function( n ) {
+        var self = this;
+        if ( 0 > n ) self.pos = Max(0, self.pos - n);
+        else self.pos += n;
+        return self;
+    }
+    
+    // move pointer back to pos
+    ,bck: function( pos ) {
+        var self = this;
+        self.pos = Max(0, pos);
+        return self;
+    }
+    
+    // move/shift stream
+    ,sft: function( ) {
+        var self = this;
+        self.start = self.pos;
+        return self;
+    }
+    
+    // next char
+    ,nxt: function( ) {
+        var self = this, c, s = self.s;
+        if ( self.pos < s.length )
+        {
+            c = s.charAt(self.pos++) || null;
+            return c;
+        }
+    }
+    
+    // current stream selection
+    ,cur: function( shift ) {
+        var self = this, ret = self.s.slice(self.start, self.pos);
+        if ( shift ) self.start = self.pos;
+        return ret;
+    }
+    
+    ,upd: function( ) {
+        var self = this;
+        if ( self._ ) self._.pos = self.pos;
+        return self;
+    }
+    
     // eat space
     ,spc: function( eat ) {
         var self = this, m, start = self.pos, s = self.s.slice(start);
         if ( m = s.match( spcRegex ) ) 
         {
-            if ( false !== eat )
-            {
-                self.pos += m[0].length;
-                if ( self._ ) self._.pos = self.pos;
-            }
+            if ( false !== eat ) self.mov( m[0].length );
             return 1;
         }
         return 0;
-    }
-    
-    // skip to end
-    ,end: function( ) {
-        var self = this;
-        self.pos = self.s.length;
-        if ( self._ ) self._.pos = self.pos;
-        return self;
-    }
-
-    // get next char
-    ,nxt: function( ) {
-        var self = this, ch, s = self.s;
-        if (self.pos < s.length)
-        {
-            ch = s.charAt(self.pos++) || null;
-            if ( self._ ) self._.pos = self.pos;
-            return ch;
-        }
-    }
-    
-    // back-up n steps
-    ,bck: function( n ) {
-        var self = this;
-        self.pos = Max(0, self.pos - n);
-        if ( self._ ) self._.pos = self.pos;
-        return self;
-    }
-    
-    // back-track to pos
-    ,bck2: function( pos ) {
-        var self = this;
-        self.pos = Max(0, pos);
-        if ( self._ ) self._.pos = self.pos;
-        return self;
     }
     
     // get current column including tabs
@@ -590,19 +598,6 @@ var Stream = Class({
         var self = this;
         tabSize = tabSize || 1;
         return Stream.col(self.s, null, tabSize) - (self.lS ? Stream.col(self.s, self.lS, tabSize) : 0);
-    }
-    
-    // current stream selection
-    ,cur: function( andShiftStream ) {
-        var self = this, ret = self.s.slice(self.start, self.pos);
-        if ( andShiftStream ) self.start = self.pos;
-        return ret;
-    }
-    
-    // move/shift stream
-    ,sft: function( ) {
-        this.start = this.pos;
-        return this;
     }
 });
 
@@ -707,20 +702,12 @@ var Stack = Class({
         return self;
     }
     
-    ,empty: function( idProp, id ) {
-        var self = this, stack = self._, l = stack.length;
-        if ( idProp && id )
-        {
-            //while (l && stack[l-1] && stack[l-1][idProp] == id) 
-            while ( stack.length && stack[stack.length-1] && stack[stack.length-1][idProp] === id ) 
-            {
-                //console.log([id, stack[l-1][idProp]]);
-                //--l;
-                stack.pop();
-            }
-            //stack.length = l;
-        }
-        else stack.length = 0;
+    ,empty: function( $id, id ) {
+        var self = this, stack = self._;
+        if ( $id && id )
+            while ( stack.length && stack[stack.length-1] && stack[stack.length-1][$id] === id ) stack.pop();
+        else
+            stack.length = 0;
         return self;
     }
 });
@@ -728,245 +715,249 @@ var Stack = Class({
 //
 // State Class
 var State = Class({
-    constructor: function State( line, unique ) {
+    constructor: function State( s, unique, with_errors ) {
         var self = this;
         // this enables unique state "names"
         // thus forces highlight to update
         // however updates also occur when no update necessary ??
         self.id = unique ? uuid("state") : "state";
-        self.l = line || 0;
-        self.stack = new Stack( );
-        self.data = new Stack( );
-        self.col = 0;
-        self.indent = 0;
-        self.t = null;
-        self.inBlock = null;
-        self.endBlock = null;
+        if ( s instanceof State )
+        {
+            // clone
+            self.line = s.line;
+            self.column = s.column;
+            self.indent = s.indent;
+            self.stack = s.stack.clone();
+            self.queu = s.queu.slice();
+            self.symb = clone( s.symb, 1 );
+            self.token = s.token;
+            self.block = s.block;
+            self.errors = s.errors;
+            self.err = s.err;
+        }
+        else
+        {
+            self.line = s || 0;
+            self.column = 0;
+            self.indent = null;
+            self.token = null;
+            self.block = null;
+            self.stack = new Stack();
+            self.queu = [];
+            self.symb = {};
+            self.errors = !!with_errors;
+            self.err = self.errors ? {} : null;
+        }
     }
     
-    // state id
     ,id: null
-    // state current line
-    ,l: 0
-    ,col: 0
+    ,line: 0
+    ,column: 0
     ,indent: 0
-    // state token stack
     ,stack: null
-    // state token push/pop match data
-    ,data: null
-    // state current token
-    ,t: null
-    // state current block name
-    ,inBlock: null
-    // state endBlock for current block
-    ,endBlock: null
+    ,queu: null
+    ,symb: null
+    ,err: null
+    ,errors: false
+    ,token: null
+    ,block: null
     
     ,dispose: function( ) {
         var self = this;
-        if ( self.stack ) self.stack.dispose( );
-        if ( self.data ) self.data.dispose( );
-        self.stack = null;
-        self.data = null;
         self.id = null;
-        self.t = null;
-        self.l = null;
-        self.col = null;
+        self.line = null;
+        self.column = null;
         self.indent = null;
-        self.inBlock = null;
-        self.endBlock = null;
+        self.token = null;
+        self.block = null;
+        self.symb = null;
+        self.errors = null;
+        self.err = null;
+        self.queu = null;
+        if ( self.stack ) self.stack.dispose( );
+        self.stack = null;
         return self;
     }
     
     ,clone: function( unique ) {
-        var self = this, c = new State( self.l, unique );
-        c.t = self.t;
-        c.col = self.col;
-        c.indent = self.indent;
-        c.stack = self.stack.clone( );
-        c.data = self.data.clone( );
-        c.inBlock = self.inBlock;
-        c.endBlock = self.endBlock;
-        return c;
+        return new State( this, unique );
     }
     
     // used mostly for ACE which treats states as strings, 
     // make sure to generate a string which will cover most cases where state needs to be updated by the editor
     ,toString: function() {
         var self = this;
-        //return ['', self.id, self.inBlock||'0'].join('_');
-        //return ['', self.id, self.t, self.r||'0', self.stack.length, self.inBlock||'0'].join('_');
-        //return ['', self.id, self.t, self.stack.length, self.inBlock||'0'].join('_');
-        //return ['', self.id, self.t, self.r||'0', self.inBlock||'0'].join('_');
-        //return ['', self.l, self.t, self.r, self.inBlock||'0', self.stack.length].join('_');
-        return ['', self.id, self.l, self.t, self.inBlock||'0'].join('_');
+        return ['', self.id, self.line, self.token ? self.token.name : '0', self.block ? self.block.name : '0'].join('_');
     }
 });
 
 //
-// matcher factories
+// pattern factories
 
-var Matcher, BlockMatcher, CompositeMatcher,
-    Token, BlockToken, CompositeToken;
+var Pattern, BlockPattern, CompositePattern,
+    Token, ActionToken, BlockToken, CompositeToken;
 
-function getChar( stream, eat ) 
+function match_char( stream, eat ) 
 {
-    var self = this, matchedResult;    
-    if ( matchedResult = stream.chr( self.tp, eat ) ) return [ self.tk, matchedResult ];
+    var self = this, p = self.pattern, c = stream.s.charAt(stream.pos) || null;
+    if ( c && p === c ) 
+    {
+        if ( false !== eat ) stream.mov( 1 );
+        return [ self.key, c ];
+    }
     return false;
 }
 
-function getCharList( stream, eat ) 
+function match_charlist( stream, eat ) 
 {
-    var self = this, matchedResult;    
-    if ( matchedResult = stream.chl( self.tp, eat ) ) return [ self.tk, matchedResult ];
+    var self = this, p = self.pattern, c = stream.s.charAt(stream.pos) || null;
+    if ( c && (-1 < p.indexOf( c )) ) 
+    {
+        if ( false !== eat ) stream.mov( 1 );
+        return [ self.key, c ];
+    }
     return false;
 }
 
-function getStr( stream, eat ) 
+function match_str( stream, eat ) 
 {
-    var self = this, matchedResult;    
-    if ( matchedResult = stream.str( self.tp, self.p, eat ) ) return [ self.tk, matchedResult ];
+    var self = this, p = self.pattern, n = p.length, s = stream.s;
+    if ( p === s.substr(stream.pos, n) ) 
+    {
+        if ( false !== eat ) stream.mov( n );
+        return [ self.key, p ];
+    }
     return false;
 }
 
-function getRegex( stream, eat ) 
+function match_re( stream, eat ) 
 {
-    var self = this, matchedResult;    
-    if ( matchedResult = stream.rex( self.tp, self.p, self.np, self.tg, eat ) ) return [ self.tk, matchedResult ];
-    return false;
+    var self = this, p = self.pattern, s = stream.s, m;
+    m = s.slice( stream.pos ).match( p[0] );
+    if ( !m || m.index > 0 ) return false;
+    if ( false !== eat ) stream.mov( m[ 0 ].length );
+    return [ self.key, m ];
 }
 
-function getNull( stream, eat ) 
+function match_null( stream, eat ) 
 {
     var self = this;
     // matches end-of-line
-    (false !== eat) && stream.end( ); // skipToEnd
-    return [ self.tk, "" ];
+    if ( false !== eat ) stream.end( ); // skipToEnd
+    return [ self.key, "" ];
 } 
     
-Matcher = Class({
-    constructor: function Matcher( type, name, pattern, key ) {
+Pattern = Class({
+    constructor: function Pattern( name, pattern, type, key ) {
         var self = this;
-        self.mt = T_SIMPLEMATCHER;
-        self.tt = type || T_CHAR;
-        self.tn = name;
-        self.tk = key || 0;
-        self.tg = 0;
-        self.tp = null;
-        self.p = null;
-        self.np = null;
+        self.type = P_SIMPLE;
+        self.name = name;
+        self.pattern = null;
+        self.ptype = type || T_STR;
+        self.key = key || 0;
         
         // get a fast customized matcher for < pattern >
-        switch ( self.tt )
+        switch ( self.ptype )
         {
-            case T_CHAR: case T_CHARLIST:
-                self.tp = pattern;
-                self.get = T_CHARLIST === self.tt ? getCharList : getChar;
-                break;
-            case T_STR:
-                self.tp = pattern;
-                self.p = {};
-                self.p[ '' + pattern.charAt(0) ] = 1;
-                self.get = getStr;
+            case T_NULL:
+                self.pattern = null;
+                self.match = match_null;
                 break;
             case T_REGEX:
-                self.tp = pattern[ 0 ];
-                self.p = pattern[ 1 ].peek || null;
-                self.np = pattern[ 1 ].negativepeek || null;
-                self.tg = pattern[ 2 ] || 0;
-                self.get = getRegex;
+                self.pattern = T_REGEX&get_type(pattern) ? [pattern, 0] : [pattern[0], pattern[1]||0];
+                self.match = match_re;
                 break;
-            case T_NULL:
-                self.tp = null;
-                self.get = getNull;
+            case T_CHAR: case T_CHARLIST:
+                self.pattern = pattern;
+                self.match = T_CHARLIST === self.ptype ? match_charlist : match_char;
+                break;
+            case T_STR:
+            default:
+                self.pattern = pattern;
+                self.match = match_str;
                 break;
         }
     }
     
-    // matcher type
-    ,mt: null
-    // token type
-    ,tt: null
-    // token name
-    ,tn: null
-    // token pattern
-    ,tp: null
-    // token pattern group
-    ,tg: 0
-    // token key
-    ,tk: 0
-    // pattern peek chars
-    ,p: null
-    // pattern negative peek chars
-    ,np: null
+    // type
+    ,type: null
+    // pattern name
+    ,name: null
+    // pattern
+    ,pattern: null
+    // pattern type
+    ,ptype: null
+    // key
+    ,key: 0
     
-    ,get: function( stream, eat ) {
+    ,dispose: function( ) {
+        var self = this;
+        self.type = null;
+        self.name = null;
+        self.pattern = null;
+        self.ptype = null;
+        self.key = null;
+        return self;
+    }
+    
+    ,match: function( stream, eat ) {
         return false;
     }
     
     ,toString: function() {
         var self = this;
         return [
-            '[', 'Matcher: ', 
-            self.tn, 
-            ', Pattern: ', 
-            (self.tp ? self.tp.toString() : null), 
+            '[', 'Pattern: ', self.name, ', ', 
+            (self.pattern ? self.pattern.toString() : null), 
             ']'
         ].join('');
     }
 });
     
-// extends Matcher
-CompositeMatcher = Class(Matcher, {
-    constructor: function CompositeMatcher( name, matchers, useOwnKey ) {
+// extends Pattern
+CompositePattern = Class(Pattern, {
+    constructor: function CompositePattern( name, pattern, useOwnKey ) {
         var self = this;
-        self.mt = T_COMPOSITEMATCHER;
-        self.tn = name;
-        self.ms = matchers;
-        self.ownKey = false!==useOwnKey;
+        self.type = P_COMPOSITE;
+        self.name = name;
+        self.pattern = pattern;
+        self.key = false!==useOwnKey;
     }
     
-    // group of matchers
-    ,ms: null
-    ,ownKey: true
-    
-    ,get: function( stream, eat ) {
-        var self = this, i, m, matchers = self.ms, l = matchers.length, useOwnKey = self.ownKey;
+    ,match: function( stream, eat ) {
+        var self = this, i, m, pattern = self.pattern, l = pattern.length, useOwnKey = self.key;
         for (i=0; i<l; i++)
         {
             // each one is a matcher in its own
-            m = matchers[ i ].get( stream, eat );
+            m = pattern[ i ].match( stream, eat );
             if ( m ) return useOwnKey ? [ i, m[1] ] : m;
         }
         return false;
     }
 });
     
-// extends Matcher
-BlockMatcher = Class(Matcher, {
-    constructor: function BlockMatcher(name, start, end) {
+// extends Pattern
+BlockPattern = Class(Pattern, {
+    constructor: function BlockPattern( name, pattern ) {
         var self = this;
-        self.mt = T_BLOCKMATCHER;
-        self.tn = name;
-        self.s = new CompositeMatcher( self.tn + '_Start', start, false );
-        self.e = end;
+        self.type = P_BLOCK;
+        self.name = name;
+        self.pattern = pattern;
+        self.pattern[0] = new CompositePattern( self.name + '_Start', self.pattern[0], false );
     }
     
-    // start block matcher
-    ,s: null
-    // end block matcher
-    ,e: null
-    
-    ,get: function( stream, eat ) {
-        var self = this, startMatcher = self.s, endMatchers = self.e, token;
+    ,match: function( stream, eat ) {
+        var self = this, pattern = self.pattern, 
+            start = pattern[0], ends = pattern[1], end, 
+            match, m, T, T0;
         
         // matches start of block using startMatcher
         // and returns the associated endBlock matcher
-        if ( token = startMatcher.get( stream, eat ) )
+        if ( match = start.match( stream, eat ) )
         {
             // use the token key to get the associated endMatcher
-            var endMatcher = endMatchers[ token[0] ], m, 
-                T = get_type( endMatcher ), T0 = startMatcher.ms[ token[0] ].tt;
+            end = ends[ match[0] ];
+            T = get_type( end ); T0 = start.pattern[ match[0] ].ptype;
             
             if ( T_REGEX === T0 )
             {
@@ -975,19 +966,19 @@ BlockMatcher = Class(Matcher, {
                 {
                     // the regex is wrapped in an additional group, 
                     // add 1 to the requested regex group transparently
-                    m = token[1][ endMatcher+1 ];
-                    endMatcher = new Matcher( (m.length > 1) ? T_STR : T_CHAR, self.tn + '_End', m );
+                    m = match[1][ end+1 ];
+                    end = new Pattern( self.name + '_End', m, m.length > 1 ? T_STR : T_CHAR );
                 }
                 // string replacement pattern given, get the proper pattern for the ending of this block
                 else if ( T_STR === T )
                 {
                     // the regex is wrapped in an additional group, 
                     // add 1 to the requested regex group transparently
-                    m = group_replace(endMatcher, token[1]);
-                    endMatcher = new Matcher( (m.length > 1) ? T_STR : T_CHAR, self.tn + '_End', m );
+                    m = group_replace( end, match[1] );
+                    end = new Pattern( self.name + '_End', m, m.length > 1 ? T_STR : T_CHAR );
                 }
             }
-            return endMatcher;
+            return end;
         }
         
         return false;
@@ -1011,13 +1002,13 @@ function get_simplematcher( name, pattern, key, cachedMatchers )
     }
     
     // get a fast customized matcher for < pattern >
-    if ( T_NULL & T ) matcher = new Matcher( T_NULL, name, pattern, key );
+    if ( T_NULL & T ) matcher = new Pattern( name, pattern, T_NULL, key );
     
-    else if ( T_CHAR === T ) matcher = new Matcher( T_CHAR, name, pattern, key );
+    else if ( T_CHAR === T ) matcher = new Pattern( name, pattern, T_CHAR, key );
     
-    else if ( T_STR & T ) matcher = is_char_list ? new Matcher( T_CHARLIST, name, pattern, key ) : new Matcher( T_STR, name, pattern, key );
+    else if ( T_STR & T ) matcher = new Pattern( name, pattern, is_char_list ? T_CHARLIST : T_STR, key );
     
-    else if ( /*T_REGEX*/T_ARRAY & T ) matcher = new Matcher( T_REGEX, name, pattern, key );
+    else if ( (T_REGEX|T_ARRAY) & T ) matcher = new Pattern( name, pattern, T_REGEX, key );
     
     // unknown
     else matcher = pattern;
@@ -1088,7 +1079,7 @@ function get_compositematcher( name, tokens, RegExpID, combined, cachedRegexes, 
                     tmp[i] = get_simplematcher( name + '_' + i, get_re( tmp[i], RegExpID, cachedRegexes ), i, cachedMatchers );
             }
             
-            matcher = (l > 1) ? new CompositeMatcher( name, tmp ) : tmp[0];
+            matcher = (l > 1) ? new CompositePattern( name, tmp ) : tmp[0];
         }
     }
     return cachedMatchers[ name ] = matcher;
@@ -1108,7 +1099,7 @@ function get_blockmatcher( name, tokens, RegExpID, cachedRegexes, cachedMatchers
         t1 = get_simplematcher( name + '_0_' + i, get_re( tmp[i][0], RegExpID, cachedRegexes ), i, cachedMatchers );
         if (tmp[i].length>1)
         {
-            if ( T_REGEX === t1.tt && T_STR === get_type( tmp[i][1] ) && !has_prefix( tmp[i][1], RegExpID ) )
+            if ( T_REGEX === t1.ptype && T_STR === get_type( tmp[i][1] ) && !has_prefix( tmp[i][1], RegExpID ) )
                 t2 = tmp[i][1];
             else
                 t2 = get_simplematcher( name + '_1_' + i, get_re( tmp[i][1], RegExpID, cachedRegexes ), i, cachedMatchers );
@@ -1119,96 +1110,85 @@ function get_blockmatcher( name, tokens, RegExpID, cachedRegexes, cachedMatchers
         }
         start.push( t1 );  end.push( t2 );
     }
-    return cachedMatchers[ name ] = new BlockMatcher( name, start, end );
+    return cachedMatchers[ name ] = new BlockPattern( name, [start, end] );
 }
 
 //
-// tokenizer factories
+// Token factories
     
 Token = Class({
-    constructor: function Token( type, name, token ) {
+    constructor: function Token( type, name, token, msg ) {
         var self = this;
-        self.tt = type || T_SIMPLE;
-        self.id = name;
-        self.tk = token;
-        self.REQ = 0;
-        self.ERR = 0;
-        self.ACTER = 0;
-        self.MSG = null;
-        self.CLONE = ['tk'];
+        self.type = type || T_SIMPLE;
+        self.name = name;
+        self.token = token;
+        //self.pos = null;
+        self.status = 0;
+        self.msg = msg || null;
+        self.$msg = null;
+        self.$clone = null;
     }
     
-    ,sID: null
     // tokenizer/token name/id
-    ,id: null
+    ,name: null
     // tokenizer type
-    ,tt: null
+    ,type: null
     // tokenizer token matcher
-    ,tk: null
-    // tokenizer action (optional)
-    ,ta: null
-    ,REQ: 0
-    ,ERR: 0
-    ,ACTER: 0
-    ,MSG: null
-    ,CLONE: null
+    ,token: null
+    // tokenizer token position
+    //,pos: null
+    // tokenizer status
+    ,status: 0
+    // tokenizer err message
+    ,msg: null
+    ,$msg: null
+    ,$clone: null
+    ,$id: null
     
-    // tokenizer match action (optional)
-    ,act: function( token, state ) {
-        var self = this, action_def = self.ta || null, action, t, data = state.data;
+    ,dispose: function( ) {
+        var self = this;
+        self.type = null;
+        self.name = null;
+        self.token = null;
+        //self.pos = null;
+        self.status = null;
+        self.msg = null;
+        self.$msg = null;
+        self.$clone = null;
+        self.$id = null;
+        return self;
+    }
+
+    ,clone: function( ) {
+        var self = this, t, i, l, $clone = self.$clone;
         
-        if ( action_def )
+        t = new self.constructor( );
+        t.type = self.type;
+        t.name = self.name;
+        t.token = self.token;
+        t.msg = self.msg;
+        
+        if ( $clone && $clone.length )
         {
-            action = action_def[ 0 ]; t = action_def[ 1 ];
-            
-            if ( ACTION_POP === action )
-            {
-                if ( t )
-                {
-                    if ( token )
-                        t = T_NUM === get_type( t ) ? token[1][ t ] : group_replace( t, token[1] );
-                    
-                    if ( data.isEmpty( ) || t !== data.peek() ) 
-                    {
-                        // no match
-                        self.MSG = 'Token "'+t+'" No Match';
-                        data.pop( );
-                        return 1;
-                    }
-                    else
-                    {
-                        data.pop( );
-                    }
-                }
-                else
-                {
-                    // pop unconditionaly
-                    data.pop( );
-                }
-            }
-            
-            else if ( (ACTION_PUSH === action) && t )
-            {
-                if ( token )
-                    t = T_NUM === get_type( t ) ? token[1][ t ] : group_replace( t, token[1] );
-                data.push( t );
-            }
+            for (i=0,l=$clone.length; i<l; i++)   
+                t[ $clone[i] ] = self[ $clone[i] ];
         }
-        return 0;
+        return t;
     }
     
     ,get: function( stream, state ) {
-        var self = this, action = self.ta, token = self.tk, 
-            type = self.tt, tokenID = self.id, t = null;
+        var self = this, token = self.token, 
+            type = self.type, tokenID = self.name, t = null;
         
-        self.MSG = null;
-        self.ACTER = 0;
-        
+        self.$msg = null;
+        state.token = null;
+        //self.pos = null;
+        //lin = state.line; col = stream.pos;
         // match EMPTY token
         if ( T_EMPTY === type ) 
         { 
-            self.ERR = 0;
-            self.REQ = 0;
+            self.status = 0;
+            //self.pos = [[lin, col], [lin, col]];
             return true;
         }
         // match EOL ( with possible leading spaces )
@@ -1217,80 +1197,220 @@ Token = Class({
             stream.spc();
             if ( stream.eol() )
             {
-                return tokenID; 
+                //self.pos = [[lin, col], [lin, stream.pos]];
+                return tokenID;
             }
         }
         // match non-space
         else if ( T_NONSPACE === type ) 
         { 
-            self.ERR = ( self.REQ && stream.spc() && !stream.eol() ) ? 1 : 0;
-            self.REQ = 0;
+            if ( (self.status&REQUIRED) && stream.spc() && !stream.eol() ) self.status |= ERROR;
+            self.status &= CLEAR_REQUIRED;
+            //self.pos = [[lin, col], [lin, col]];
         }
         // else match a simple token
-        else if ( t = token.get(stream) ) 
+        else if ( t = token.match(stream) ) 
         { 
-            if ( action ) self.ACTER = self.act(t, state);
+            state.token = {name:tokenID, value:stream.cur(), token:t[1]};
+            //self.pos = [[lin, col], [lin, stream.pos]];
             return tokenID; 
         }
         return false;
     }
     
     ,req: function( bool ) { 
-        this.REQ = !!bool;
-        return this;
+        var self = this;
+        if ( !bool ) self.status &= CLEAR_REQUIRED;
+        else self.status |= REQUIRED;
+        return self;
     }
     
-    ,err: function( ) {
-        var t = this;
-        if ( t.MSG ) return t.MSG;
-        else if ( t.REQ ) return 'Token "'+t.id+'" Expected';
-        return 'Syntax Error: "'+t.id+'"';
-    }
-
-    ,clone: function( ) {
-        var self = this, t, i, toClone = self.CLONE, toClonelen;
-        
-        t = new self.constructor( );
-        t.tt = self.tt;
-        t.id = self.id;
-        t.ta = self.ta ? self.ta.slice() : self.ta;
-        
-        if ( toClone && toClone.length )
+    ,err: function( state, l1, c1, l2, c2 ) {
+        var t = this, m, tok = t.name;
+        if ( t.$msg ) m = t.$msg;
+        else if ( t.status&REQUIRED ) m = 'Token "'+tok+'" Expected';
+        else m = 'Syntax Error: "'+tok+'"';
+        if ( state && state.errors )
         {
-            for (i=0, toClonelen = toClone.length; i<toClonelen; i++)   
-                t[ toClone[i] ] = self[ toClone[i] ];
+            state.err[l1+'_'+c1+'_'+l2+'_'+c2+'_'+tok] = [l1, c1, l2, c2, m];
         }
-        return t;
+        return m;
     }
     
     ,toString: function( ) {
         var self = this;
         return [
-            '[', 'Tokenizer: ', 
-            self.id, 
-            ', Matcher: ', 
-            (self.tk ? self.tk.toString() : null), 
+            '[', 'Token: ',self.name, ', ',
+            self.token ? self.tok.toString() : null,
             ']'
         ].join('');
     }
 });
-    
+
+// extends Token
+ActionToken = Class(Token, {
+    constructor: function ActionToken( type, name, action, msg ) {
+        var self = this;
+        self.type = type || T_ACTION;
+        self.name = name;
+        self.token = action;
+        //self.pos = null;
+        self.status = 0;
+        self.msg = msg || null;
+        self.$msg = null;
+        self.$clone = null;
+    }
+     
+    ,get: function( stream, state ) {
+        var self = this, action_def = self.token || null, action, 
+        t, t0, ns, msg, queu = state.queu, symb = state.symb, token = state.token,
+        lin, col1, col2, err = state.err, error, emsg, with_errors = state.errors;
+        
+        self.status = 0;
+        self.$msg = null;
+        if ( action_def )
+        {
+            msg = self.msg;
+            action = action_def[ 0 ]; t = action_def[ 1 ];
+            lin = state.line; col2 = stream.pos; col1 = token&&token.value ? col2-token.value.length : col1-1;
+            
+            if ( A_ERROR === action )
+            {
+                if ( with_errors )
+                {
+                    if ( msg ) self.$msg = msg;
+                    else self.$msg = 'Error';
+                    error = lin+'_'+col1+'_'+lin+'_'+col2+'_'+self.name;
+                    err[error] = [lin,col1,lin,col2,self.err()];
+                }
+                self.status |= ERROR;
+                return false;
+            }
+            
+            else if ( A_EMPTY === action )
+            {
+                queu.length = 0;
+            }
+            
+            /*else if ( A_BLOCKINDENT === action )
+            {
+                // TODO
+            }
+            
+            else if ( A_INDENT === action )
+            {
+                // TODO
+            }
+            
+            else if ( A_OUTDENT === action )
+            {
+                // TODO
+            }*/
+            
+            else if ( A_UNIQUE === action )
+            {
+                if ( token )
+                {
+                    t0 = t[1]; ns = t[0];
+                    t0 = T_NUM === get_type( t0 ) ? token.token[ t0 ] : group_replace( t0, token.token, true );
+                    if ( !symb[HAS](ns) ) symb[ns] = { };
+                    if ( symb[ns][HAS](t0) )
+                    {
+                        // duplicate
+                        if ( with_errors )
+                        {
+                            if ( msg ) self.$msg = group_replace( msg, t0, true );
+                            else self.$msg = 'Duplicate "'+t0+'"';
+                            emsg = self.err( );
+                            error = symb[ns][t0][0]+'_'+symb[ns][t0][1]+'_'+symb[ns][t0][2]+'_'+symb[ns][t0][3]+'_'+self.name;
+                            err[error] = [symb[ns][t0][0],symb[ns][t0][1],symb[ns][t0][2],symb[ns][t0][3],emsg];
+                            error = lin+'_'+col1+'_'+lin+'_'+col2+'_'+self.name;
+                            err[error] = [lin,col1,lin,col2,emsg];
+                        }
+                        self.status |= ERROR;
+                        return false;
+                    }
+                    else
+                    {
+                        symb[ns][t0] = [lin,col1,lin,col2];
+                    }
+                }
+            }
+            
+            else if ( A_POP === action )
+            {
+                if ( t )
+                {
+                    if ( token )
+                        t = T_NUM === get_type( t ) ? token.token[ t ] : group_replace( t, token.token );
+                    
+                    if ( !queu.length || t !== queu[0][0] ) 
+                    {
+                        // no match
+                        if ( with_errors )
+                        {
+                            if ( queu.length )
+                            {
+                                if ( msg ) self.$msg = group_replace( msg, [queu[0][0],t], true );
+                                else self.$msg = 'Tokens do not match "'+queu[0][0]+'","'+t+'"';
+                                emsg = self.err( );
+                                error = queu[0][1]+'_'+queu[0][2]+'_'+queu[0][3]+'_'+queu[0][4]+'_'+self.name;
+                                err[error] = [queu[0][1],queu[0][2],queu[0][3],queu[0][4],emsg];
+                                error = lin+'_'+col1+'_'+lin+'_'+col2+'_'+self.name;
+                                err[error] = [lin,col1,lin,col2,emsg];
+                            }
+                            else
+                            {
+                                if ( msg ) self.$msg = group_replace( msg, ['',t], true );
+                                else self.$msg = 'Token does not match "'+t+'"';
+                                emsg = self.err( );
+                                error = lin+'_'+col1+'_'+lin+'_'+col2+'_'+self.name;
+                                err[error] = [lin,col1,lin,col2,emsg];
+                            }
+                        }
+                        queu.shift( );
+                        self.status |= ERROR;
+                        return false;
+                    }
+                    else
+                    {
+                        queu.shift( );
+                    }
+                }
+                else
+                {
+                    // pop unconditionaly
+                    queu.shift( );
+                }
+            }
+            
+            else if ( (A_PUSH === action) && t )
+            {
+                if ( token )
+                    t = T_NUM === get_type( t ) ? token.token[ t ] : group_replace( t, token.token );
+                queu.unshift( [t, lin, col1, lin, col2] );
+            }
+        }
+        return true;
+    }
+});
+            
 // extends Token
 BlockToken = Class(Token, {
-    constructor: function BlockToken( type, name, token, allowMultiline, escChar, hasInterior ) {
+    constructor: function BlockToken( type, name, token, msg, allowMultiline, escChar, hasInterior ) {
         var self = this;
-        self.tt = type;
-        self.id = name;
-        self.tk = token;
-        self.REQ = 0;
-        self.ERR = 0;
-        self.ACTER = 0;
-        self.MSG = null;
+        self.type = type;
+        self.name = name;
+        self.token = token;
+        //self.pos = null;
+        self.status = 0;
+        self.msg = msg || null;
         // a block is multiline by default
         self.mline = 'undefined' === typeof(allowMultiline) ? 1 : allowMultiline;
         self.esc = escChar || "\\";
         self.inter = hasInterior;
-        self.CLONE = ['tk', 'mline', 'esc', 'inter'];
+        self.$msg = null;
+        self.$clone = ['mline', 'esc', 'inter'];
     }
      
     ,inter: 0
@@ -1299,10 +1419,11 @@ BlockToken = Class(Token, {
     
     ,get: function( stream, state ) {
         var self = this, ended = 0, found = 0, endBlock, next = "", continueToNextLine, stackPos, 
-            allowMultiline = self.mline, startBlock = self.tk, thisBlock = self.id, type = self.tt,
+            allowMultiline = self.mline, startBlock = self.token, thisBlock = self.name, type = self.type,
             hasInterior = self.inter, thisBlockInterior = hasInterior ? (thisBlock+'.inside') : thisBlock,
             charIsEscaped = 0, isEscapedBlock = T_ESCBLOCK === type, escChar = self.esc,
-            isEOLBlock, alreadyIn, ret, streamPos, streamPos0, continueBlock
+            isEOLBlock, alreadyIn, ret, streamPos, streamPos0, continueBlock,
+            b_s, b_e, b_i, b_1='', b_2='', b_3='', b_21='', lin, col, stack = state.stack
         ;
         
         /*
@@ -1312,51 +1433,67 @@ BlockToken = Class(Token, {
             descriptive names and logic used here for clarity as far as possible
         */
         
-        self.MSG = null;
-        self.ACTER = 0;
+        self.$msg = self.msg || null;
+        //self.pos = null;
+        lin = state.line; col = stream.pos;
         // comments in general are not required tokens
-        if ( T_COMMENT === type ) self.REQ = 0;
+        if ( T_COMMENT === type ) self.status &= CLEAR_REQUIRED;
         
         alreadyIn = 0;
-        if ( state.inBlock === thisBlock )
+        if ( state.block && state.block.name === thisBlock )
         {
             found = 1;
-            endBlock = state.endBlock;
+            endBlock = state.block.end;
+            //self.pos = state.block.pos;
             alreadyIn = 1;
             ret = thisBlockInterior;
+            b_s = state.block.s;
+            b_i = state.block.i;
+            b_e = state.block.e;
+            b_1 = state.block._s;
+            b_2 = state.block._i;
+            b_21 = '';
         }    
-        else if ( !state.inBlock && (endBlock = startBlock.get(stream)) )
+        else if ( !state.block && (endBlock = startBlock.match(stream)) )
         {
             found = 1;
-            state.inBlock = thisBlock;
-            state.endBlock = endBlock;
+            //self.pos = [[lin, col],[lin, stream.pos]];
+            b_s = [lin,col];
+            b_i = [[lin,stream.pos],[lin,stream.pos]];
+            b_e = [lin,stream.pos];
+            b_1 = stream.cur( );
+            b_2 = '';
+            b_21 = '';
+            b_3 = '';
+            state.block = {name:thisBlock, end:endBlock, s:b_s, i:b_i, e:b_e, _s:b_1, _i:b_2, _e:b_3};
             ret = thisBlock;
         }    
         
         if ( found )
         {
-            stackPos = state.stack.pos( );
+            stackPos = stack.pos( );
             
-            isEOLBlock = (T_NULL === endBlock.tt);
+            isEOLBlock = T_NULL === endBlock.type;
             
             if ( hasInterior )
             {
                 if ( alreadyIn && isEOLBlock && stream.sol( ) )
                 {
-                    self.REQ = 0;
-                    state.inBlock = null;
-                    state.endBlock = null;
+                    self.status &= CLEAR_REQUIRED;
+                    // ?????
+                    state.current = null;
+                    state.block = null;
                     return false;
                 }
                 
                 if ( !alreadyIn )
                 {
-                    state.stack.pushAt( stackPos, self.clone( ), 'sID', thisBlock );
+                    stack.pushAt( stackPos, self.clone( ), '$id', thisBlock );
                     return ret;
                 }
             }
             
-            ended = endBlock.get( stream );
+            ended = endBlock.match( stream );
             continueToNextLine = allowMultiline;
             continueBlock = 0;
             
@@ -1366,14 +1503,14 @@ BlockToken = Class(Token, {
                 while ( !stream.eol( ) ) 
                 {
                     streamPos = stream.pos;
-                    if ( !(isEscapedBlock && charIsEscaped) && endBlock.get(stream) ) 
+                    if ( !(isEscapedBlock && charIsEscaped) && endBlock.match(stream) ) 
                     {
                         if ( hasInterior )
                         {
                             if ( stream.pos > streamPos && streamPos > streamPos0 )
                             {
                                 ret = thisBlockInterior;
-                                stream.bck2(streamPos);
+                                stream.bck(streamPos);
                                 continueBlock = 1;
                             }
                             else
@@ -1387,155 +1524,163 @@ BlockToken = Class(Token, {
                             ret = thisBlock;
                             ended = 1;
                         }
+                        b_3 = stream.cur().slice(b_21.length);
                         break;
                     }
                     else
                     {
                         next = stream.nxt( );
+                        b_21 += next;
                     }
-                    charIsEscaped = !charIsEscaped && next == escChar;
+                    charIsEscaped = !charIsEscaped && next === escChar;
                 }
             }
             else
             {
-                ret = (isEOLBlock) ? thisBlockInterior : thisBlock;
+                ret = isEOLBlock ? thisBlockInterior : thisBlock;
+                b_3 = stream.cur().slice(b_21.length);
             }
             continueToNextLine = allowMultiline || (isEscapedBlock && charIsEscaped);
             
+            b_i[1] = [lin, streamPos];
+            b_e = [lin, stream.pos];
             if ( ended || (!continueToNextLine && !continueBlock) )
             {
-                state.inBlock = null;
-                state.endBlock = null;
+                state.block = null;
+                //self.pos[1] = [lin, stream.pos];
             }
             else
             {
-                state.stack.pushAt( stackPos, self.clone( ), 'sID', thisBlock );
+                //self.pos[1] = [lin, stream.pos];
+                //state.block.pos = self.pos;
+                state.block.i = b_i;
+                state.block.e = b_e;
+                state.block._i += b_21;
+                state.block._e = b_3;
+                state.stack.pushAt( stackPos, self.clone( ), '$id', thisBlock );
             }
-            
+            state.token = {name:thisBlock, value:stream.cur(), token:[b_1+b_2+b_21+b_3, b_2+b_21]};
             return ret;
         }
         
-        //state.inBlock = null;
-        //state.endBlock = null;
         return false;
     }
 });
             
 // extends Token
 CompositeToken = Class(Token, {
-    constructor: function CompositeToken( type, name, tokens, min, max ) {
+    constructor: function CompositeToken( type, name, tokens, msg, min, max ) {
         var self = this;
-        self.tt = type ? type : T_REPEATED;
-        self.id = name || null;
-        self.tk = null;
-        self.ts = null;
-        self.REQ = 0;
-        self.ERR = 0;
-        self.ACTER = 0;
-        self.MSG = null;
+        self.type = type ? type : T_REPEATED;
+        self.name = name || null;
+        self.token = null;
+        //self.pos = null;
+        self.status = 0;
+        self.msg = msg || null;
         self.min = min || 0;
         self.max = max || INF;
         self.found = 0;
-        self.CLONE = ['ts', 'min', 'max', 'found'];
+        self.$msg = null;
+        self.$clone = ['min', 'max', 'found'];
         if ( tokens ) self.set( tokens );
     }
      
-    ,ts: null
     ,min: 0
     ,max: 1
     ,found: 0
     
     ,set: function( tokens ) {
-        if ( tokens ) this.ts = make_array( tokens );
+        if ( tokens ) this.token = make_array( tokens );
         return this;
     }
     
     ,get: function( stream, state ) {
-        var self = this, i, type = self.tt, token, style, tokens = self.ts, n = tokens.length, 
+        var self = this, i, i0, type = self.type, token, action, style, 
+            tokens = self.token, n = tokens.length, t, pos, stack, err,
             found, min, max, tokensRequired, tokensErr, streamPos, stackPos, stackId, match_all;
         
+        self.$msg = self.msg || null;
+        self.status &= CLEAR_ERROR;
+        streamPos = stream.pos;
+        stack = state.stack;
         if ( T_EITHER === type )
         {
             tokensRequired = 0; tokensErr = 0;
-            self.REQ = 1;
-            self.ERR = 0;
-            self.ACTER = 0;
-            self.MSG = null;
-            streamPos = stream.pos;
+            self.status |= REQUIRED;
+            err = [];
             
             for (i=0; i<n; i++)
             {
                 token = tokens[i].clone().req( 1 );
                 style = token.get(stream, state);
                 
-                tokensRequired += (token.REQ) ? 1 : 0;
+                if ( token.status&REQUIRED )
+                {
+                    tokensRequired++;
+                    err.push(token.err());
+                }
                 
                 if ( false !== style )
                 {
-                    self.ACTER = token.ACTER;
-                    self.MSG = token.MSG;
                     return style;
                 }
-                else if ( token.ERR )
+                else if ( token.status&ERROR )
                 {
                     tokensErr++;
-                    stream.bck2( streamPos );
+                    stream.bck( streamPos );
                 }
             }
             
-            self.REQ = (tokensRequired > 0);
-            self.ERR = (n == tokensErr && tokensRequired > 0);
+            if ( tokensRequired > 0 ) self.status |= REQUIRED;
+            else self.status &= CLEAR_REQUIRED;
+            if ( (n === tokensErr) && (tokensRequired > 0) ) self.status |= ERROR;
+            else self.status &= CLEAR_ERROR;
+            if ( self.status && !self.$msg && err.length ) self.$msg = err.join(' | ');
             return false;
         }
         else if ( T_SEQUENCE_OR_NGRAM & type )
         {
             match_all = type & T_SEQUENCE ? 1 : 0;
-            self.REQ = match_all;
-            self.ERR = 0;
-            self.ACTER = 0;
-            self.MSG = null;
-            streamPos = stream.pos;
-            stackPos = state.stack.pos();
+            if ( match_all ) self.status |= REQUIRED;
+            else self.status &= CLEAR_REQUIRED;
+            stackPos = stack.pos();
             token = tokens[ 0 ].clone().req( match_all );
             style = token.get(stream, state);
-            stackId = self.id+'_'+get_id();
+            stackId = self.name+'_'+get_id();
             
             if ( false !== style )
             {
                 // not empty token
                 if ( true !== style )
                 {
-                    for (var i=n-1; i>0; i--)
-                        state.stack.pushAt( stackPos+n-i-1, tokens[ i ].clone().req( 1 ), 'sID', stackId );
+                    for (i=n-1; i>0; i--)
+                        stack.pushAt( stackPos+n-i-1, tokens[ i ].clone().req( 1 ), '$id', stackId );
                 }
                     
-                self.ACTER = token.ACTER;
-                self.MSG = token.MSG;
                 return style;
             }
-            else if ( token.ERR /*&& token.REQ*/ )
+            else if ( token.status&ERROR /*&& token.REQ*/ )
             {
-                self.ERR = match_all;
-                stream.bck2( streamPos );
+                if ( match_all ) self.status |= ERROR;
+                else self.status &= CLEAR_ERROR;
+                stream.bck( streamPos );
             }
-            else if ( match_all && token.REQ )
+            else if ( match_all && (token.status&REQUIRED) )
             {
-                self.ERR = 1;
+                self.status |= ERROR;
             }
             
+            if ( self.status && !self.$msg ) self.$msg = token.err();
             return false;
         }
         else
         {
             tokensRequired = 0;
             found = self.found; min = self.min; max = self.max;
-            self.ERR = 0;
-            self.REQ = 0;
-            self.ACTER = 0;
-            self.MSG = null;
-            streamPos = stream.pos;
-            stackPos = state.stack.pos( );
-            stackId = self.id+'_'+get_id( );
+            self.status &= CLEAR_REQUIRED;
+            stackPos = stack.pos( );
+            stackId = self.name+'_'+get_id( );
+            err = [];
             
             for (i=0; i<n; i++)
             {
@@ -1549,23 +1694,25 @@ CompositeToken = Class(Token, {
                     {
                         // push it to the stack for more
                         self.found = found;
-                        state.stack.pushAt( stackPos, self.clone( ), 'sID', stackId );
+                        stack.pushAt( stackPos, self.clone( ), '$id', stackId );
                         self.found = 0;
-                        self.ACTER = token.ACTER;
-                        self.MSG = token.MSG;
                         return style;
                     }
                     break;
                 }
-                else if ( token.REQ )
+                else if ( token.status&REQUIRED )
                 {
                     tokensRequired++;
+                    err.push(token.err());
                 }
-                if ( token.ERR ) stream.bck2( streamPos );
+                if ( token.status&ERROR ) stream.bck( streamPos );
             }
             
-            self.REQ = found < min;
-            self.ERR = found > max || (found < min && 0 < tokensRequired);
+            if ( found < min ) self.status |= REQUIRED;
+            else self.status &= CLEAR_REQUIRED;
+            if ( (found > max) || (found < min && 0 < tokensRequired) ) self.status |= ERROR;
+            else self.status &= CLEAR_ERROR;
+            if ( self.status && !self.$msg && err.length ) self.$msg = err.join(' | ');
             return false;
         }
     }
@@ -1879,24 +2026,26 @@ function get_tokenizer( tokenID, RegExpID, Lex, Syntax, Style,
                     commentTokens, comments, keywords ) 
 {
     var tok, token = null, type, combine, tokenAction, matchType, tokens, subTokenizers,
-        ngrams, ngram, i, l, j, l2, xtends, xtendedTok, t;
+        ngrams, ngram, i, l, j, l2, xtends, xtendedTok, t, MSG;
+    
+    MSG = null;
     
     if ( null === tokenID )
     {
-        // EOL Tokenizer
-        return new Token( T_EOL, 'EOL', tokenID );
+        // EOL Token
+        return new Token( T_EOL, 'EOL', tokenID, MSG );
     }
     
     else if ( "" === tokenID )
     {
-        // NONSPACE Tokenizer
-        return new Token( T_NONSPACE, 'NONSPACE', tokenID );
+        // NONSPACE Token
+        return new Token( T_NONSPACE, 'NONSPACE', tokenID, MSG );
     }
     
     else if ( false === tokenID || 0 === tokenID )
     {
-        // EMPTY Tokenizer
-        return new Token( T_EMPTY, 'EMPTY', tokenID );
+        // EMPTY Token
+        return new Token( T_EMPTY, 'EMPTY', tokenID, MSG );
     }
     
     else if ( T_ARRAY & get_type( tokenID ) )
@@ -1962,11 +2111,59 @@ function get_tokenizer( tokenID, RegExpID, Lex, Syntax, Style,
     if ( 'undefined' === typeof tok.type )
     {
         // provide some defaults
-        if ( tok['all'] || tok['sequence'] )
+        if ( tok[HAS]('error') )
+        {
+            tok.type = "action";
+            tok.action = [ 'error', tok.error ];
+            delete tok.error;
+        }
+        else if ( tok[HAS]('empty') )
+        {
+            tok.type = "action";
+            tok.action = [ 'empty', tok.empty ];
+            delete tok.empty;
+        }
+        else if ( tok[HAS]('block-indent') )
+        {
+            tok.type = "action";
+            tok.action = [ 'block-indent', tok['block-indent'] ];
+            delete tok['block-indent'];
+        }
+        else if ( tok[HAS]('indent') )
+        {
+            tok.type = "action";
+            tok.action = [ 'indent', tok.indent ];
+            delete tok.indent;
+        }
+        else if ( tok[HAS]('outdent') )
+        {
+            tok.type = "action";
+            tok.action = [ 'outdent', tok.outdent ];
+            delete tok.outdent;
+        }
+        else if ( tok[HAS]('unique') )
+        {
+            tok.type = "action";
+            tok.action = [ 'unique', T_STR&get_type(tok.unique) ? ['_DEFAULT_', tok.unique] : tok.unique ];
+            delete tok.unique;
+        }
+        else if ( tok[HAS]('push') )
+        {
+            tok.type = "action";
+            tok.action = [ 'push', tok.push ];
+            delete tok.push;
+        }
+        else if ( tok[HAS]('pop') )
+        {
+            tok.type = "action";
+            tok.action = [ 'pop', tok.pop ];
+            delete tok.pop;
+        }
+        else if ( tok['sequence'] || tok['all']  )
         {
             tok.type = "group";
             tok.match = "sequence";
-            tok.tokens = tok['all'] || tok['sequence'];
+            tok.tokens = tok['sequence'] || tok['all'];
             if ( tok['all'] ) delete tok['all'];
             else delete tok['sequence'];
         }
@@ -2029,70 +2226,78 @@ function get_tokenizer( tokenID, RegExpID, Lex, Syntax, Style,
     }
     type = tok.type ? tokenTypes[ tok.type.toUpperCase( ).replace( dashes_re, '' ) ] : T_SIMPLE;
     
+    MSG = tok.msg || null;
+    
     if ( T_SIMPLE & type )
     {
         if ( "" === tok.tokens )
         {
-            // NONSPACE Tokenizer
-            token = new Token( T_NONSPACE, tokenID, tokenID );
+            // NONSPACE Token
+            token = new Token( T_NONSPACE, tokenID, tokenID, MSG );
             // pre-cache tokenizer to handle recursive calls to same tokenizer
             cachedTokens[ tokenID ] = token;
             return token;
         }
         else if ( null === tok.tokens )
         {
-            // EOL Tokenizer
-            token = new Token( T_EOL, tokenID, tokenID );
+            // EOL Token
+            token = new Token( T_EOL, tokenID, tokenID, MSG );
             // pre-cache tokenizer to handle recursive calls to same tokenizer
             cachedTokens[ tokenID ] = token;
             return token;
         }
         else if ( false === tok.tokens || 0 === tok.tokens )
         {
-            // EMPTY Tokenizer
-            token = new Token( T_EMPTY, tokenID, tokenID );
+            // EMPTY Token
+            token = new Token( T_EMPTY, tokenID, tokenID, MSG );
             // pre-cache tokenizer to handle recursive calls to same tokenizer
             cachedTokens[ tokenID ] = token;
             return token;
         }
     }
 
-    tok.tokens = make_array( tok.tokens );
+    if ( !(T_ACTION & type) ) tok.tokens = make_array( tok.tokens );
     
-    if ( T_SIMPLE & type )
+    if ( T_ACTION & type )
+    {
+        if ( !tok[HAS]('action') )
+        {
+            if ( tok[HAS]('error') ) tok.action = [A_ERROR, tok.error];
+            else if ( tok[HAS]('empty') ) tok.action = [A_EMPTY, tok.empty];
+            else if ( tok[HAS]('block-indent') ) tok.action = [A_BLOCKINDENT, tok['block-indent']];
+            else if ( tok[HAS]('indent') ) tok.action = [A_INDENT, tok.indent];
+            else if ( tok[HAS]('outdent') ) tok.action = [A_OUTDENT, tok.outdent];
+            else if ( tok[HAS]('unique') ) tok.action = [A_UNIQUE, T_STR&get_type(tok.unique)?['_DEFAULT_',tok.unique]:tok.unique];
+            else if ( tok[HAS]('push') ) tok.action = [A_PUSH, tok.push];
+            else if ( tok[HAS]('pop') ) tok.action = [A_POP, tok.pop];
+        }
+        else
+        {
+            if ( 'error' === tok.action[0] ) tok.action[0] = A_ERROR;
+            else if ( 'empty' === tok.action[0] ) tok.action[0] = A_EMPTY;
+            else if ( 'block-indent' === tok.action[0] ) tok.action[0] = A_BLOCKINDENT;
+            else if ( 'indent' === tok.action[0] ) tok.action[0] = A_INDENT;
+            else if ( 'outdent' === tok.action[0] ) tok.action[0] = A_OUTDENT;
+            else if ( 'unique' === tok.action[0] ) tok.action[0] = A_UNIQUE;
+            else if ( 'push' === tok.action[0] ) tok.action[0] = A_PUSH;
+            else if ( 'pop' === tok.action[0] ) tok.action[0] = A_POP;
+        }
+        tokenAction = tok.action.slice();
+        token = new ActionToken( T_ACTION, tokenID, tokenAction, MSG );
+        // pre-cache tokenizer to handle recursive calls to same tokenizer
+        cachedTokens[ tokenID ] = token;
+    }
+    
+    else if ( T_SIMPLE & type )
     {
         if ( tok.autocomplete ) get_autocomplete( tok, tokenID, keywords );
-        
-        if ( tok.push )
-        {
-            if ( !tok.action ) tok.action = [ 'push', tok.push ];
-            delete tok.push;
-        }
-        else if ( tok[HAS]('pop') )
-        {
-            if ( !tok.action ) tok.action = [ 'pop', tok.pop ];
-            delete tok.pop;
-        }
-        
-        tokenAction = null;
-        if ( tok.action && tok.action[0] )
-        {
-            if ( 'push' === tok.action[0] )
-            {
-                tokenAction = [ ACTION_PUSH, tok.action[1] ];
-            }
-            else if ( 'pop' === tok.action[0] )
-            {
-                tokenAction = [ ACTION_POP, tok.action[1] ];
-            }
-        }
         
         // combine by default if possible using word-boundary delimiter
         combine = ( 'undefined' === typeof(tok.combine) ) ? "\\b" : tok.combine;
         token = new Token( T_SIMPLE, tokenID,
-                    get_compositematcher( tokenID, tok.tokens.slice(), RegExpID, combine, cachedRegexes, cachedMatchers )
+                    get_compositematcher( tokenID, tok.tokens.slice(), RegExpID, combine, cachedRegexes, cachedMatchers ), 
+                    MSG
                 );
-        token.ta = tokenAction;
         // pre-cache tokenizer to handle recursive calls to same tokenizer
         cachedTokens[ tokenID ] = token;
     }
@@ -2103,6 +2308,7 @@ function get_tokenizer( tokenID, RegExpID, Lex, Syntax, Style,
 
         token = new BlockToken( type, tokenID,
                     get_blockmatcher( tokenID, tok.tokens.slice(), RegExpID, cachedRegexes, cachedMatchers ), 
+                    MSG,
                     tok.multiline,
                     tok.escape,
                     // allow block delims / block interior to have different styles
@@ -2119,26 +2325,26 @@ function get_tokenizer( tokenID, RegExpID, Lex, Syntax, Style,
         tokens = tok.tokens.slice( );
         if ( T_ARRAY & get_type( tok.match ) )
         {
-            token = new CompositeToken( T_REPEATED, tokenID, null, tok.match[0], tok.match[1] );
+            token = new CompositeToken( T_REPEATED, tokenID, null, MSG, tok.match[0], tok.match[1] );
         }
         else
         {
             matchType = groupTypes[ tok.match.toUpperCase() ]; 
             
             if ( T_ZEROORONE === matchType ) 
-                token = new CompositeToken( T_ZEROORONE, tokenID, null, 0, 1 );
+                token = new CompositeToken( T_ZEROORONE, tokenID, null, MSG, 0, 1 );
             
             else if ( T_ZEROORMORE === matchType ) 
-                token = new CompositeToken( T_ZEROORMORE, tokenID, null, 0, INF );
+                token = new CompositeToken( T_ZEROORMORE, tokenID, null, MSG, 0, INF );
             
             else if ( T_ONEORMORE === matchType ) 
-                token = new CompositeToken( T_ONEORMORE, tokenID, null, 1, INF );
+                token = new CompositeToken( T_ONEORMORE, tokenID, null, MSG, 1, INF );
             
             else if ( T_EITHER & matchType ) 
-                token = new CompositeToken( T_EITHER, tokenID, null );
+                token = new CompositeToken( T_EITHER, tokenID, null, MSG );
             
             else //if (T_SEQUENCE === matchType)
-                token = new CompositeToken( T_SEQUENCE, tokenID, null );
+                token = new CompositeToken( T_SEQUENCE, tokenID, null, MSG );
         }
         
         // pre-cache tokenizer to handle recursive calls to same tokenizer
@@ -2163,7 +2369,7 @@ function get_tokenizer( tokenID, RegExpID, Lex, Syntax, Style,
             // get tokenizers for each ngram part
             ngrams[i] = token[i].slice();
             // get tokenizer for whole ngram
-            token[i] = new CompositeToken( T_NGRAM, tokenID + '_NGRAM_' + i, null );
+            token[i] = new CompositeToken( T_NGRAM, tokenID + '_NGRAM_' + i, null, MSG );
         }
         
         // pre-cache tokenizer to handle recursive calls to same tokenizer
@@ -2278,7 +2484,7 @@ function parse_grammar( grammar )
 /**
 *
 *   AceGrammar
-*   @version: 1.0.3
+*   @version: 2.0.0
 *
 *   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
@@ -2436,43 +2642,67 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
         return self;
     }
     
-    ,parse: function( code ) {
+    ,parse: function( code, parse_type ) {
         code = code || "";
-        var self = this, lines = code.split(newline_re), l = lines.length, i, tokens = [], data;
-        data = { state: new State( ), tokens: null };
+        var self = this, lines = code.split(newline_re), l = lines.length, i, 
+            tokens = null, data, ret, parse_errors, parse_tokens;
         
-        for (i=0; i<l; i++)
+        parse_type = parse_type || TOKENS;
+        parse_errors = !!(parse_type&ERRORS);
+        parse_tokens = !!(parse_type&TOKENS);
+        
+        data = {state:new State(0, 0, parse_errors), tokens:null};
+        
+        if ( parse_tokens )
         {
-            data = self.getLineTokens(lines[i], data.state, i);
-            tokens.push(data.tokens);
+            tokens = [];
+            for (i=0; i<l; i++)
+            {
+                //data.state.line = i;
+                data = self.getLineTokens(lines[i], data.state, i);
+                tokens.push(data.tokens);
+            }
         }
-        return tokens;
+        else //if ( parse_errors )
+        {
+            for (i=0; i<l; i++)
+            {
+                //data.state.line = i;
+                data = self.getLineTokens(lines[i], data.state, i);
+            }
+        }
+        if ( parse_tokens && parse_errors ) ret = {tokens:tokens, errors:data.state.err};
+        else if ( parse_tokens ) ret = tokens;
+        else ret = data.state.err;
+        data.state.dispose();
+        return ret;
     }
     
     // ACE Tokenizer compatible
     ,getLineTokens: function( line, state, row ) {
         
-        var self = this, i, rewind, rewind2, ci,
-            tokenizer, interleavedCommentTokens = self.cTokens, tokens = self.Tokens, numTokens = tokens.length, 
-            aceTokens, token, type, style, currentError = null,
-            stream, stack, DEFAULT = self.DEF, ERROR = self.ERR, Style = self.Style
+        var self = this, i, rewind, rewind2, ci, tokenizer, action,
+            interleavedCommentTokens = self.cTokens, tokens = self.Tokens, numTokens = tokens.length, 
+            aceTokens, token, type, style, pos, lin,
+            stream, stack, DEFAULT = self.DEF, ERR = self.ERR, Style = self.Style
         ;
         
         aceTokens = []; 
         stream = new Stream( line );
-        state = state ? state.clone( 1 ) : new State( 1, 1 );
-        state.l = 1+row;
+        state = state ? state.clone( 1 ) : new State( 0, 1 );
+        state.line = row;
         stack = state.stack;
-        token = { type: null, value: "", error: null };
-        type = null;
-        style = null;
+        token = {type:null, value:""};
+        type = null; style = null;
         
         // if EOL tokenizer is left on stack, pop it now
-        if ( stream.sol() && !stack.isEmpty() && T_EOL === stack.peek().tt ) 
+        if ( stream.sol() && !stack.isEmpty() && T_EOL === stack.peek().type ) 
         {
             stack.pop();
         }
         
+        lin = state.line;
+        pos = stream.pos;
         while ( !stream.eol() )
         {
             rewind = 0;
@@ -2480,8 +2710,8 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             if ( style && style !== token.type )
             {
                 if ( token.type ) aceTokens.push( token );
-                token = { type: style, value: stream.cur(1), error: currentError };
-                currentError = null;
+                token = {type:style, value:stream.cur(1)};
+                pos = stream.pos;
             }
             else if ( token.type )
             {
@@ -2490,10 +2720,9 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             style = false;
             
             // check for non-space tokenizer before parsing space
-            if ( (stack.isEmpty() || (T_NONSPACE !== stack.peek().tt)) && stream.spc() )
+            if ( (stack.isEmpty() || (T_NONSPACE !== stack.peek().type)) && stream.spc() )
             {
-                state.t = type = DEFAULT;
-                style = DEFAULT;
+                type = DEFAULT; style = DEFAULT;
                 continue;
             }
             
@@ -2505,7 +2734,7 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                     while ( ci < interleavedCommentTokens.length )
                     {
                         tokenizer = interleavedCommentTokens[ci++];
-                        state.t = type = tokenizer.get(stream, state);
+                        type = tokenizer.get(stream, state);
                         if ( false !== type )
                         {
                             style = Style[type] || DEFAULT;
@@ -2520,23 +2749,23 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                     }
                 }
             
+                pos = stream.pos;
                 tokenizer = stack.pop();
-                state.t = type = tokenizer.get(stream, state);
+                type = tokenizer.get(stream, state);
             
                 // match failed
                 if ( false === type )
                 {
                     // error
-                    if ( tokenizer.ERR || tokenizer.REQ )
+                    if ( tokenizer.status&REQUIRED_OR_ERROR )
                     {
                         // empty the stack
-                        stack.empty('sID', tokenizer.sID);
+                        stack.empty('$id', tokenizer.$id);
                         // skip this character
                         stream.nxt();
                         // generate error
-                        state.t = type = ERROR;
-                        style = ERROR;
-                        currentError = tokenizer.err();
+                        type = ERR; style = ERR;
+                        tokenizer.err(state, lin, pos, lin, stream.pos);
                         rewind = 1;
                         break;
                     }
@@ -2551,15 +2780,21 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                 else if ( true !== type )
                 {
                     style = Style[type] || DEFAULT;
-                    // action error
-                    if ( tokenizer.ACTER )
+                    // action token follows, execute action on current token
+                    while ( !stack.isEmpty() && T_ACTION === stack.peek().type )
                     {
-                        // empty the stack
-                        stack.empty('sID', tokenizer.sID);
-                        // generate error
-                        state.t = type = ERROR;
-                        style = ERROR;
-                        currentError = tokenizer.err();
+                        action = stack.pop();
+                        action.get(stream, state);
+                        // action error
+                        if ( action.status&ERROR )
+                        {
+                            // empty the stack
+                            stack.empty('$id', /*action*/tokenizer.$id);
+                            // generate error
+                            //type = ERR; style = ERR;
+                            //action.err(state, lin, pos, lin, stream.pos);
+                            break;
+                        }
                     }
                     rewind = 1;
                     break;
@@ -2571,23 +2806,23 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             
             for (i=0; i<numTokens; i++)
             {
+                pos = stream.pos;
                 tokenizer = tokens[i];
-                state.t = type = tokenizer.get(stream, state);
+                type = tokenizer.get(stream, state);
                 
                 // match failed
                 if ( false === type )
                 {
                     // error
-                    if ( tokenizer.ERR || tokenizer.REQ )
+                    if ( tokenizer.status&REQUIRED_OR_ERROR )
                     {
                         // empty the stack
-                        stack.empty('sID', tokenizer.sID);
+                        stack.empty('$id', tokenizer.$id);
                         // skip this character
                         stream.nxt();
                         // generate error
-                        state.t = type = ERROR;
-                        style = ERROR;
-                        currentError = tokenizer.err();
+                        type = ERR; style = ERR;
+                        tokenizer.err(state, lin, pos, lin, stream.pos);
                         rewind = 1;
                         break;
                     }
@@ -2602,15 +2837,21 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                 else if ( true !== type )
                 {
                     style = Style[type] || DEFAULT;
-                    // action error
-                    if ( tokenizer.ACTER )
+                    // action token follows, execute action on current token
+                    while ( !stack.isEmpty() && T_ACTION === stack.peek().type )
                     {
-                        // empty the stack
-                        stack.empty('sID', tokenizer.sID);
-                        // generate error
-                        state.t = type = ERROR;
-                        style = ERROR;
-                        currentError = tokenizer.err();
+                        action = stack.pop();
+                        action.get(stream, state);
+                        // action error
+                        if ( action.status&ERROR )
+                        {
+                            // empty the stack
+                            stack.empty('$id', /*action*/tokenizer.$id);
+                            // generate error
+                            //type = ERR; style = ERR;
+                            //action.err(state, lin, pos, lin, stream.pos);
+                            break;
+                        }
                     }
                     rewind = 1;
                     break;
@@ -2621,16 +2862,13 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             if ( stream.eol() ) break;
             
             // unknown, bypass
-            stream.nxt();
-            state.t = type = DEFAULT;
-            style = DEFAULT;
+            stream.nxt(); type = DEFAULT; style = DEFAULT;
         }
         
         if ( style && style !== token.type )
         {
             if ( token.type ) aceTokens.push( token );
-            aceTokens.push( { type: style, value: stream.cur(1), error: currentError } );
-            currentError = null;
+            aceTokens.push( {type:style, value:stream.cur(1)} );
         }
         else if ( token.type )
         {
@@ -2639,10 +2877,8 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
         }
         token = null;
         
-        //console.log(aceTokens);
-        
         // ACE Tokenizer compatible
-        return { state: state, tokens: aceTokens };
+        return {state:state, tokens:aceTokens};
     }
     
     ,tCL: function( state, session, startRow, endRow ) {
@@ -2883,8 +3119,7 @@ function worker_init( )
             
             ,onUpdate: function( ) {
                 var self = this, sender = self.sender, parser = self.parser,
-                    code, linetokens, tokens, errors,
-                    line, lines, t, token, column, errorFound = 0
+                    code, code_errors, err, error, errors
                 ;
                 
                 if ( !parser )
@@ -2900,37 +3135,30 @@ function worker_init( )
                     return;
                 }
                 
-                errors = [];
-                linetokens = parser.parse( code );
-                lines = linetokens.length;
-                
-                for (line=0; line<lines; line++) 
+                code_errors = parser.parse( code, ERRORS );
+                if ( !code_errors )
                 {
-                    tokens = linetokens[ line ];
-                    if ( !tokens || !tokens.length )  continue;
-                    
-                    column = 0;
-                    for (t=0; t<tokens.length; t++)
-                    {
-                        token = tokens[t];
-                        
-                        if ( parser.ERR == token.type )
-                        {
-                            errors.push({
-                                row: line,
-                                column: column,
-                                text: token.error || "Syntax Error",
-                                type: "error",
-                                raw: token.error || "Syntax Error"
-                            });
-                            
-                            errorFound = 1;
-                        }
-                        column += token.value.length;
-                    }
+                    sender.emit( "ok", null );
+                    return;
                 }
                 
-                if ( errorFound )  sender.emit("error", errors);
+                errors = [];
+                for (err in code_errors)
+                {
+                    if ( !code_errors.hasOwnProperty(err) ) continue;
+                    
+                    error = code_errors[err];
+                    errors.push({
+                        row: error[0],
+                        column: error[1],
+                        text: error[4] || "Syntax Error",
+                        type: "error",
+                        raw: error[4] || "Syntax Error",
+                        range: [error[0],error[1],error[2],error[3]]
+                    });
+                }
+                
+                if ( errors.length )  sender.emit("error", errors);
                 else  sender.emit("ok", null);
             }
         });
@@ -2957,7 +3185,47 @@ function get_mode( grammar, DEFAULT )
         // 'text' should be used in most cases
         DEFAULT: DEFAULT || DEFAULTSTYLE,
         ERROR: DEFAULTERROR
-    }), mode;
+    }), mode, id = uuid("ace_grammar_mode");
+    
+    var
+    clearMarkers = function( session ) {
+        if ( !session[id + '$markers'] ) session[id + '$markers'] = [];
+        var i, markers = session[id + '$markers'];
+        if ( markers && markers.length )
+        {
+            for (i=0; i<markers.length; i++)
+                session.removeMarker( markers[i] );
+        }
+        markers.length = 0;
+    },
+    updateMarkers = function( session, errors ) {
+        var i, l = errors.length, err, Range = ace_require('ace/range').Range, markers;
+        clearMarkers( session );
+        markers = session[id + '$markers'];
+        for (i=0; i<l; i++)
+        {
+            err = errors[i];
+            if ( err.range )
+            {
+                markers.push(
+                session.addMarker(
+                    new Range(err.range[0], err.range[1], err.range[2], err.range[3]),
+                    "ace_error-marker",
+                    "text",
+                    0/*back*/
+                ));
+                delete err.range;
+            }
+        }
+    },
+    clearAnnotations = function( session ) {
+        clearMarkers( session );
+        session.clearAnnotations( );
+    },
+    updateAnnotations = function( session, errors ) {
+        updateMarkers( session, errors );
+        session.setAnnotations( errors );
+    };
     
     // ACE-compatible Mode
     mode = {
@@ -2979,11 +3247,13 @@ function get_mode( grammar, DEFAULT )
         //HighlightRules: null,
         //$behaviour: parser.$behaviour || null,
 
+        $id: id,
+        
         createWorker: function( session ) {
             
             if ( !mode.supportGrammarAnnotations ) 
             {
-                session.clearAnnotations( );
+                clearAnnotations( session );
                 return null;
             }
             
@@ -2996,12 +3266,13 @@ function get_mode( grammar, DEFAULT )
                 //console.log('Init returned');
                 // hook worker to enable error annotations
                 worker.on("error", function( e ) {
-                    //console.log(e.data);
-                    session.setAnnotations( e.data );
+                    var errors = e.data;
+                    //console.log(errors);
+                    updateAnnotations( session, errors )
                 });
 
                 worker.on("ok", function() {
-                    session.clearAnnotations( );
+                    clearAnnotations( session );
                 });
             });
             return worker;
@@ -3084,7 +3355,7 @@ function get_mode( grammar, DEFAULT )
 [/DOC_MARKDOWN]**/
 var AceGrammar = exports['AceGrammar'] = {
     
-    VERSION: "1.0.3",
+    VERSION: "2.0.0",
     
     // clone a grammar
     /**[DOC_MARKDOWN]
@@ -3143,8 +3414,8 @@ var AceGrammar = exports['AceGrammar'] = {
     [/DOC_MARKDOWN]**/
     getMode: get_mode
 };
-    
-    /* main code ends here */
-    /* export the module */
-    return exports["AceGrammar"];
+
+/* main code ends here */
+/* export the module */
+return exports["AceGrammar"];
 });
