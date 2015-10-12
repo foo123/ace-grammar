@@ -228,7 +228,7 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             {
                 if ( token.type ) aceTokens.push( token );
                 token = {type:style, value:stream.cur(1)};
-                pos = stream.pos;
+                //pos = stream.pos;
             }
             else if ( token.type )
             {
@@ -306,7 +306,7 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                         if ( action.status&ERROR )
                         {
                             // empty the stack
-                            stack.empty('$id', /*action*/tokenizer.$id);
+                            //stack.empty('$id', /*action*/tokenizer.$id);
                             // generate error
                             //type = ERR; style = ERR;
                             //action.err(state, lin, pos, lin, stream.pos);
@@ -363,7 +363,7 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                         if ( action.status&ERROR )
                         {
                             // empty the stack
-                            stack.empty('$id', /*action*/tokenizer.$id);
+                            //stack.empty('$id', /*action*/tokenizer.$id);
                             // generate error
                             //type = ERR; style = ERR;
                             //action.err(state, lin, pos, lin, stream.pos);
@@ -702,10 +702,9 @@ function get_mode( grammar, DEFAULT )
         // 'text' should be used in most cases
         DEFAULT: DEFAULT || DEFAULTSTYLE,
         ERROR: DEFAULTERROR
-    }), mode, id = uuid("ace_grammar_mode");
+    }), mode, id = uuid("ace_grammar_mode")
     
-    var
-    clearMarkers = function( session ) {
+    ,clearMarkers = function( session ) {
         if ( !session[id + '$markers'] ) session[id + '$markers'] = [];
         var i, markers = session[id + '$markers'];
         if ( markers && markers.length )
@@ -714,8 +713,8 @@ function get_mode( grammar, DEFAULT )
                 session.removeMarker( markers[i] );
         }
         markers.length = 0;
-    },
-    updateMarkers = function( session, errors ) {
+    }
+    ,updateMarkers = function( session, errors ) {
         var i, l = errors.length, err, Range = ace_require('ace/range').Range, markers;
         clearMarkers( session );
         markers = session[id + '$markers'];
@@ -734,15 +733,16 @@ function get_mode( grammar, DEFAULT )
                 delete err.range;
             }
         }
-    },
-    clearAnnotations = function( session ) {
+    }
+    ,clearAnnotations = function( session ) {
         clearMarkers( session );
         session.clearAnnotations( );
-    },
-    updateAnnotations = function( session, errors ) {
+    }
+    ,updateAnnotations = function( session, errors ) {
         updateMarkers( session, errors );
         session.setAnnotations( errors );
-    };
+    }
+    ;
     
     // ACE-compatible Mode
     mode = {
