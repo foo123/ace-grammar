@@ -2,7 +2,7 @@
 var js_grammar = {
         
     // prefix ID for regular expressions used in the grammar
-    "RegExpID" : "RegExp::",
+    "RegExpID" : "RE::",
     
     //
     // Style model
@@ -41,27 +41,27 @@ var js_grammar = {
         },
         
         // general identifiers
-        "identifier" : "RegExp::/[_A-Za-z$][_A-Za-z0-9$]*/",
+        "identifier" : "RE::/[_A-Za-z$][_A-Za-z0-9$]*/",
         
-        "property" : "RegExp::/[_A-Za-z$][_A-Za-z0-9$]*/",
+        "property" : "RE::/[_A-Za-z$][_A-Za-z0-9$]*/",
         
         // numbers, in order of matching
         "number" : [
             // floats
-            "RegExp::/\\d*\\.\\d+(e[\\+\\-]?\\d+)?/",
-            "RegExp::/\\d+\\.\\d*/",
-            "RegExp::/\\.\\d+/",
+            "RE::/\\d*\\.\\d+(e[\\+\\-]?\\d+)?/",
+            "RE::/\\d+\\.\\d*/",
+            "RE::/\\.\\d+/",
             // integers
             // hex
-            "RegExp::/0x[0-9a-fA-F]+L?/",
+            "RE::/0x[0-9a-fA-F]+L?/",
             // binary
-            "RegExp::/0b[01]+L?/",
+            "RE::/0b[01]+L?/",
             // octal
-            "RegExp::/0o[0-7]+L?/",
+            "RE::/0o[0-7]+L?/",
             // decimal
-            "RegExp::/[1-9]\\d*(e[\\+\\-]?\\d+)?L?/",
+            "RE::/[1-9]\\d*(e[\\+\\-]?\\d+)?L?/",
             // just zero
-            "RegExp::/0(?![\\dx])/"
+            "RE::/0(?![\\dx])/"
         ],
 
         // usual strings
@@ -69,7 +69,7 @@ var js_grammar = {
             "type" : "escaped-block",
             "escape" : "\\",
             // start, end of string (can be the matched regex group ie. 1 )
-            "tokens" : [ "RegExp::/(['\"])/",   1 ]
+            "tokens" : [ "RE::/(['\"])/",   1 ]
         },
         
         // literal regular expressions
@@ -77,7 +77,7 @@ var js_grammar = {
             "type" : "escaped-block",
             "escape" : "\\",
             // javascript literal regular expressions can be parsed similar to strings
-            "tokens" : [ "/",    "RegExp::#/[gimy]{0,4}#" ]
+            "tokens" : [ "/",    "RE::#/[gimy]{0,4}#" ]
         },
         
         // operators
@@ -133,6 +133,26 @@ var js_grammar = {
                 "Object", "Function", "Array", "String", "Date", "Number", "RegExp", "Exception",
                 "setTimeout", "setInterval", "alert", "console"
             ]
+        },
+        
+        "ctx_start": {
+            "context-start": true
+        },
+        
+        "ctx_end": {
+            "context-end": true
+        },
+        
+        "unique": {
+            "unique": ["prop", "$0"],
+            "msg": "Duplicate object property \"$0\"",
+            "in-context": true
+        },
+        
+        "unique_prop": {
+            "unique": ["prop", "$1"],
+            "msg": "Duplicate object property \"$0\"",
+            "in-context": true
         }
     },
     
@@ -140,14 +160,14 @@ var js_grammar = {
     // Syntax model (optional)
     "Syntax" : {
         
-        "literalProperty" : "string | property",
+        "literalProperty" : "string unique_prop | property unique",
         
         "literalValue" : "atom | string | regex | number | identifier | literalArray | literalObject",
         
         "literalPropertyValue" : "literalProperty ':' literalValue",
         
         // grammar recursion here
-        "literalObject" : "'{' (literalPropertyValue (',' literalPropertyValue)*)? '}'",
+        "literalObject" : "'{' ctx_start (literalPropertyValue (',' literalPropertyValue)*)? '}' ctx_end",
         
         // grammar recursion here
         "literalArray" : "'[' (literalValue (',' literalValue)*)? ']'",

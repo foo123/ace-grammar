@@ -303,15 +303,15 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                         action = stack.pop();
                         action.get(stream, state);
                         // action error
-                        if ( action.status&ERROR )
+                        /*if ( action.status&ERROR )
                         {
                             // empty the stack
-                            //stack.empty('$id', /*action*/tokenizer.$id);
+                            //stack.empty('$id', /*action* /tokenizer.$id);
                             // generate error
                             //type = ERR; style = ERR;
                             //action.err(state, lin, pos, lin, stream.pos);
                             break;
-                        }
+                        }*/
                     }
                     rewind = 1;
                     break;
@@ -360,15 +360,15 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                         action = stack.pop();
                         action.get(stream, state);
                         // action error
-                        if ( action.status&ERROR )
+                        /*if ( action.status&ERROR )
                         {
                             // empty the stack
-                            //stack.empty('$id', /*action*/tokenizer.$id);
+                            //stack.empty('$id', /*action* /tokenizer.$id);
                             // generate error
                             //type = ERR; style = ERR;
                             //action.err(state, lin, pos, lin, stream.pos);
                             break;
-                        }
+                        }*/
                     }
                     rewind = 1;
                     break;
