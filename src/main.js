@@ -168,14 +168,13 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
         parse_errors = !!(parse_type&ERRORS);
         parse_tokens = !!(parse_type&TOKENS);
         
-        data = {state:new State(0, 0, parse_errors), tokens:null};
+        data = {state:new State(0, 0, parse_type), tokens:null};
         
         if ( parse_tokens )
         {
             tokens = [];
             for (i=0; i<l; i++)
             {
-                //data.state.line = i;
                 data = self.getLineTokens(lines[i], data.state, i);
                 tokens.push(data.tokens);
             }
@@ -184,7 +183,6 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
         {
             for (i=0; i<l; i++)
             {
-                //data.state.line = i;
                 data = self.getLineTokens(lines[i], data.state, i);
             }
         }
@@ -197,7 +195,6 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
     
     // ACE Tokenizer compatible
     ,getLineTokens: function( line, state, row ) {
-        
         var self = this, i, rewind, rewind2, ci, tokenizer, action,
             interleavedCommentTokens = self.cTokens, tokens = self.Tokens, numTokens = tokens.length, 
             aceTokens, token, type, style, pos, lin,
@@ -208,14 +205,16 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
         stream = new Stream( line );
         state = state ? state.clone( 1 ) : new State( 0, 1 );
         state.line = row;
+        if ( 0 === state.line ) state.status |= T_SOF;
+        else state.status &= ~T_SOF;
         stack = state.stack;
         token = {type:null, value:""};
         type = null; style = null;
         
-        // if EOL tokenizer is left on stack, pop it now
-        if ( stream.sol() && !stack.isEmpty() && T_EOL === stack.peek().type ) 
+        if ( stream.sol() ) 
         {
-            stack.pop();
+            // if EOL tokenizer is left on stack, pop it now
+            while( !stack.isEmpty() && T_EOL === stack.peek().type ) stack.pop();
         }
         
         lin = state.line;
@@ -228,7 +227,6 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             {
                 if ( token.type ) aceTokens.push( token );
                 token = {type:style, value:stream.cur(1)};
-                //pos = stream.pos;
             }
             else if ( token.type )
             {
@@ -308,9 +306,7 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                             // empty the stack
                             //stack.empty('$id', /*action* /tokenizer.$id);
                             // generate error
-                            //type = ERR; style = ERR;
                             //action.err(state, lin, pos, lin, stream.pos);
-                            break;
                         }*/
                     }
                     rewind = 1;
@@ -365,9 +361,7 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
                             // empty the stack
                             //stack.empty('$id', /*action* /tokenizer.$id);
                             // generate error
-                            //type = ERR; style = ERR;
                             //action.err(state, lin, pos, lin, stream.pos);
-                            break;
                         }*/
                     }
                     rewind = 1;

@@ -2,30 +2,30 @@
 var css_grammar = {
     
     // prefix ID for regular expressions used in the grammar
-    "RegExpID" : "RegExp::",
+    "RegExpID" : "RE::",
 
     //
     // Style model
     "Style" : {
         // lang token type  -> Editor (style) tag
-        "comment":         "comment",
-        "@atrule":         "constant",
-        "@import":         "constant",
-        "@keyframes":      "constant",
-        "@media":          "constant",
-        "identifier":      "variable",
-        "!important":      "attribute",
-        "CssAtom":         "support.constant",
-        "url":             "support.constant",
-        "format":          "support.constant",
-        "CssProperty":     "support.type",
-        "HtmlElement":     "constant",
-        "CssID":           "keyword",
-        "CssClass":        "variable",
-        "PseudoElement":   "string",
-        "number":          "constant.numeric",
-        "string":          "string",
-        "text":            "string"
+        "comment"         : "comment",
+        "@atrule"         : "constant",
+        "@import"         : "constant",
+        "@keyframes"      : "constant",
+        "@media"          : "constant",
+        "identifier"      : "variable",
+        "!important"      : "attribute",
+        "CssAtom"         : "support.constant",
+        "url"             : "support.constant",
+        "format"          : "support.constant",
+        "CssProperty"     : "support.type",
+        "HtmlElement"     : "constant",
+        "CssID"           : "keyword",
+        "CssClass"        : "variable",
+        "PseudoElement"   : "string",
+        "number"          : "constant.numeric",
+        "string"          : "string",
+        "text"            : "string"
     },
 
     
@@ -34,8 +34,7 @@ var css_grammar = {
     "Lex" : {
         
         // comments
-        "comment" : {
-            "type" : "comment",
+        "comment:comment" : {
             "interleave": true,
             "tokens" : [
                 // block comments
@@ -48,167 +47,103 @@ var css_grammar = {
         "number" : [
             // integers
             // decimal
-            "RegExp::/[0-9]\\d*(rad|grad|deg|turn|vh|vw|vmin|vmax|px|rem|em|%|in|cm|mm|pc|pt|ex|s|ms)?/i",
+            "RE::/[0-9]\\d*(rad|grad|deg|turn|vh|vw|vmin|vmax|px|rem|em|%|in|cm|mm|pc|pt|ex|s|ms)?/i",
             // floats
-            "RegExp::/\\.\\d+(rad|grad|deg|turn|vh|vw|vmin|vmax|px|rem|em|%|in|cm|mm|pc|pt|ex|s|ms)?/i",
-            "RegExp::/\\d+\\.\\d*(rad|grad|deg|turn|vh|vw|vmin|vmax|px|rem|em|%|in|cm|mm|pc|pt|ex|s|ms)?/i",
-            "RegExp::/\\d*\\.\\d+(rad|grad|deg|turn|vh|vw|vmin|vmax|px|rem|em|%|in|cm|mm|pc|pt|ex|s|ms)?/i",
+            "RE::/\\.\\d+(rad|grad|deg|turn|vh|vw|vmin|vmax|px|rem|em|%|in|cm|mm|pc|pt|ex|s|ms)?/i",
+            "RE::/\\d+\\.\\d*(rad|grad|deg|turn|vh|vw|vmin|vmax|px|rem|em|%|in|cm|mm|pc|pt|ex|s|ms)?/i",
+            "RE::/\\d*\\.\\d+(rad|grad|deg|turn|vh|vw|vmin|vmax|px|rem|em|%|in|cm|mm|pc|pt|ex|s|ms)?/i",
             // hex color
-            "RegExp::/#[0-9a-f]{3,6}/i"
+            "RE::/#[0-9a-f]{3,6}/i"
         ],
         
         // strings
-        "string" : {
-            "type" : "block",
+        "string:block" : {
             "multiline": false,
             "tokens" : [
                 //  start,           end of string (can be the matched regex group ie. 1 )
-                [ "RegExp::/(['\"])/", 1 ]
+                [ "RE::/(['\"])/", 1 ]
             ]
         },
         
-        "text" : "RegExp::/[^\\(\\)\\[\\]\\{\\}'\"]+/",
+        "text" : "RE::/[^\\(\\)\\[\\]\\{\\}'\"]+/",
         
         // css identifier
-        "identifier" : "RegExp::/[a-z_\\-][a-z0-9_\\-]*/i",
+        "identifier" : "RE::/[a-z_\\-][a-z0-9_\\-]*/i",
         
         // css ids
-        "CssID" : "RegExp::/#[a-z_\\-][a-z0-9_\\-]*/i",
+        "CssID" : "RE::/#[a-z_\\-][a-z0-9_\\-]*/i",
         
         // css classes
-        "CssClass" : "RegExp::/\\.[a-z_\\-][a-z0-9_\\-]*/i",
+        "CssClass" : "RE::/\\.[a-z_\\-][a-z0-9_\\-]*/i",
         
         // css pseudo classes / pseudo elements
-        "PseudoElement" : "RegExp::/::?[a-z_\\-][a-z0-9_\\-]*/i",
+        "PseudoElement" : "RE::/::?[a-z_\\-][a-z0-9_\\-]*/i",
         
         // css properties
-        "CssProperty" : "RegExp::/[a-z_\\-][a-z0-9_\\-]*/i",
+        "CssProperty" : "RE::/[a-z_\\-][a-z0-9_\\-]*/i",
                               
         // css atoms / values
-        "url" : "RegExp::/url\\b/i",
-        "format" : "RegExp::/format\\b/i",
-        "CssAtom" : "RegExp::/[a-z_\\-][a-z_\\-]*/i",
+        "url" : "RE::/url\\b/i",
+        "format" : "RE::/format\\b/i",
+        "CssAtom" : "RE::/[a-z_\\-][a-z_\\-]*/i",
         
         // css @atrules
-        "@import" : "RegExp::/@import\\b/i",
-        "@keyframes" : "RegExp::/@[a-z\\-]*keyframes\\b/i",
-        "@media" : "RegExp::/@media\\b/i",
-        "@atrule" : "RegExp::/@[a-z_\\-][a-z0-9_\\-]*/i",
+        "@import" : "RE::/@import\\b/i",
+        "@keyframes" : "RE::/@[a-z\\-]*keyframes\\b/i",
+        "@media" : "RE::/@media\\b/i",
+        "@atrule" : "RE::/@[a-z_\\-][a-z0-9_\\-]*/i",
         
-        "!important" : "RegExp::/!important\\b/i",
+        "!important" : "RE::/!important\\b/i",
         
         // css html element
-        "HtmlElement" : "RegExp::/[a-z_\\-][a-z0-9_\\-]*/i"
+        "HtmlElement" : "RE::/[a-z_\\-][a-z0-9_\\-]*/i",
+        
+        "match:action" : {
+            "push": "$0"
+        },
+        "matched1:action" : {
+            "pop": "{",
+            "msg": "Token \"$0\" does not match"
+        },
+        "matched2:action" : {
+            "pop": "(",
+            "msg": "Token \"$0\" does not match"
+        }
     },
 
     //
     // Syntax model (optional)
     "Syntax" : {
         
-        "stringOrText" : {
-            "type" : "group",
-            "match" : "either",
-            "tokens" : [ "string", "text" ]
-        },
+        "urlDeclaration:ngram" : "url '(' match (string | text) ')' matched2",
         
-        "urlDeclaration" : {
-            "type" : "ngram",
-            "tokens" : [ "url", "(", "stringOrText", ")" ]
-        },
+        "formatDeclaration:ngram" : "format '(' match (string | text) ')' matched2",
         
-        "formatDeclaration" : {
-            "type" : "ngram",
-            "tokens" : [ "format", "(", "stringOrText", ")" ]
-        },
+        "cssSelector" : "(HtmlElement | CssID | CssClass | PseudoElement | string | ',' | '(' match | ')' matched2 | '[' | ']' | '=' | '+' | '^' | '>' | '*' | '~')+",
         
-        "cssSelector" : {
-            "type" : "group",
-            "match" : "oneOrMore",
-            "tokens" : [ "HtmlElement", "CssID", "CssClass", "PseudoElement", "string", ",", "(", ")", "[", "]", "=", "+", "^", ">", "*", "~"]
-        },
+        "RHSAssignment" : "(!important | urlDeclaration | formatDeclaration | string | number | CssAtom | ',' | '(' match | ')' matched2)+",
         
-        "RHSAssignment" : {
-            "type" : "group",
-            "match" : "oneOrMore",
-            "tokens" : [ "!important", "urlDeclaration", "formatDeclaration", "string", "number", "CssAtom", ",", "(", ")" ]
-        },
-        
-        "semicolon" : {
-            "type" : "group",
-            "match" : "zeroOrMore",
-            "tokens" : [ ";" ]
-        },
-        
-        "cssAssignment" : {
-            "type" : "group",
-            "match" : "all",
-            "tokens" : [ "CssProperty", ":", "RHSAssignment", "semicolon" ]
-        },
-        
-        "cssAssignments" : {
-            "type" : "group",
-            "match" : "zeroOrMore",
-            "tokens" : [ "cssAssignment" ]
-        },
+        "cssAssignment" : "CssProperty ':' RHSAssignment ';'*",
         
         // syntax grammar (n-gram) for a block of css assignments
-        "cssBlock" : {
-            "type" : "n-gram",
-            "tokens" : [
-                [ "number", "{", "cssAssignments", "}" ],
-                [ "cssSelector", "{", "cssAssignments", "}" ]
-            ]
-        },
+        "cssBlock:ngram" : [
+            [ "number '{' match cssAssignment* '}' matched1" ],
+            [ "cssSelector '{' match cssAssignment* '}' matched1" ]
+        ],
         
-        "cssBlocks" : {
-            "type" : "group",
-            "match": "zeroOrMore",
-            "tokens" : [ "cssBlock" ]
-        },
+        "@importDirective:ngram" : "@import urlDeclaration ';'",
         
-        "@importDirective" : {
-            "type" : "n-gram",
-            "tokens" : [ "@import", "urlDeclaration", ";" ]
-        },
+        "@keyframesDirective:ngram" : "@keyframes identifier '{' match cssBlock* '}' matched1",
         
-        "@keyframesDirective" : {
-            "type" : "n-gram",
-            "tokens" : [ "@keyframes", "identifier", "{", "cssBlocks", "}" ]
-        },
+        "cssIdentifiers" : "(identifier | number | string | ',' | '(' match | ')' matched2)+",
         
-        "cssIdentifiers" : {
-            "type" : "group",
-            "match": "oneOrMore",
-            "tokens" : [ "identifier", "number", "string", ",", "(", ")"]
-        },
+        "@mediaDirective:ngram" : "@media cssIdentifiers '{' match cssBlock* '}' matched1",
         
-        "@mediaDirective" : {
-            "type" : "n-gram",
-            "tokens" : [ "@media", "cssIdentifiers", "{", "cssBlocks", "}" ]
-        },
+        "atruleLine" : "cssIdentifiers ';'*",
         
-        "atruleLine" : {
-            "type" : "group",
-            "match": "all",
-            "tokens" : [ "cssIdentifiers", "semicolon" ]
-        },
+        "atruleBlock" : "'{' match cssAssignments '}' matched1",
         
-        "atruleBlock" : {
-            "type" : "group",
-            "match": "all",
-            "tokens" : [ "{", "cssAssignments", "}" ]
-        },
-        
-        "atruleLineOrBlock" : {
-            "type" : "group",
-            "match": "either",
-            "tokens" : [ "atruleBlock", "atruleLine" ]
-        },
-        
-        "@atruleDirective"  : {
-            "type" : "n-gram",
-            "tokens" : [ "@atrule", "atruleLineOrBlock" ]
-        }
+        "@atruleDirective:ngram"  : "@atrule (atruleBlock | atruleLine)"
     },
 
     // what to parse and in what order
