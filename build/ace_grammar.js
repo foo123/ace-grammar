@@ -1,7 +1,7 @@
 /**
 *
 *   AceGrammar
-*   @version: 2.1.0
+*   @version: 2.1.1
 *
 *   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
@@ -2664,7 +2664,7 @@ function parse_grammar( grammar )
 /**
 *
 *   AceGrammar
-*   @version: 2.1.0
+*   @version: 2.1.1
 *
 *   Transform a grammar specification in JSON format, into an ACE syntax-highlight parser mode
 *   https://github.com/foo123/ace-grammar
@@ -3476,32 +3476,51 @@ function get_mode( grammar, DEFAULT )
 
         //$createKeywordList: function() { return parser.$createKeywordList(); },
         getKeywords: function( append ) { 
-            var keywords = parser.Keywords;
-            if ( !keywords ) return [ ];
-            return keywords.map(function(word) {
-                var w = word.word, wm = word.meta;
-                return {
-                    name: w,
-                    value: w,
-                    score: 1000,
-                    meta: wm
-                };
-            });
+            var keywords = parser.Keywords, i, l, word, list = [];
+            if ( keywords && keywords.length )
+            {
+                for (i=0,l=keywords.length; i<l; i++)
+                {
+                    word = keywords[i];
+                    list.push({
+                        name: word.word, value: word.word, meta: word.meta,
+                        score: 1000
+                    });
+                }
+            }
+            return list;
         },
-        getCompletions: function( state, session, pos, prefix ) {
-            var keywords = parser.Keywords;
-            if ( !keywords ) return [ ];
-            var len = prefix.length;
-            return keywords.map(function(word) {
-                var w = word.word, wm = word.meta, wl = w.length;
-                var match = (wl >= len) && (prefix === w.substr(0, len));
-                return {
-                    name: w,
-                    value: w,
-                    score: match ? (1000 - wl) : 0,
-                    meta: wm
-                };
-            });
+        getCompletions: function( state, session, position, prefix ) {
+            var keywords = parser.Keywords, i, l, word, w, wm, wl, list=[], 
+            pos, pos_i, case_insensitive_match = true, prefix_match = false, m1, m2, len, token, token_i;
+            if ( keywords && keywords.length && prefix.length )
+            {
+                token = prefix; token_i = token.toLowerCase(); len = token.length;
+                for (i=0,l=keywords.length; i<l; i++)
+                {
+                    word = keywords[i];
+                    w = word.word; wm = word.meta; wl = w.length;
+                    if ( wl < len ) continue;
+                    if ( case_insensitive_match )
+                    {
+                        m1 = w.toLowerCase();
+                        m2 = token_i;
+                    }
+                    else
+                    {
+                        m1 = w;
+                        m2 = token;
+                    }
+                    if ( (pos_i = m1.indexOf( m2 )) < 0 || (prefix_match && (pos_i > 0)) ) continue;
+                    if ( case_insensitive_match ) pos = w.indexOf( token );
+                    list.push({
+                        name: w, value: w, meta: wm,
+                        // longer matches or matches not at start have lower match score
+                        score: 1000 - 10*(wl-len) - 2*(pos<0?pos_i+10:pos)
+                    });
+                }
+            }
+            return list;
         }
     };
     return mode;
@@ -3529,7 +3548,7 @@ function get_mode( grammar, DEFAULT )
 [/DOC_MARKDOWN]**/
 var AceGrammar = exports['AceGrammar'] = {
     
-    VERSION: "2.1.0",
+    VERSION: "2.1.1",
     
     // clone a grammar
     /**[DOC_MARKDOWN]
