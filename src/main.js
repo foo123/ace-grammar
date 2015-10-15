@@ -101,9 +101,14 @@ DEFAULTERROR = "invalid";
 var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
     constructor: function Parser( grammar, LOC ) {
         var self = this, rxLine;
+        
+        self.$grammar = grammar;
+        self.DEF = LOC.DEFAULT;
+        self.ERR = grammar.Style.error || LOC.ERROR;
+        
         // support comments toggle
-        self.LC = grammar.Comments.line || null;
-        self.BC = grammar.Comments.block ? { start: grammar.Comments.block[0][0], end: grammar.Comments.block[0][1] } : null;
+        self.LC = grammar.$comments.line || null;
+        self.BC = grammar.$comments.block ? { start: grammar.$comments.block[0][0], end: grammar.$comments.block[0][1] } : null;
         if ( self.LC )
         {
             if ( T_ARRAY & get_type(self.LC) ) 
@@ -119,43 +124,27 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             self.rxStart = new RegExp("^(\\s*)(?:" + esc_re(self.BC.start) + ")");
             self.rxEnd = new RegExp("(?:" + esc_re(self.BC.end) + ")\\s*$");
         }
-
-        self.DEF = LOC.DEFAULT;
-        self.ERR = grammar.Style.error || LOC.ERROR;
-        
-        // support keyword autocompletion
-        self.Keywords = grammar.Keywords.autocomplete || null;
-        
-        self.Tokens = grammar.Parser || [];
-        self.cTokens = grammar.cTokens.length ? grammar.cTokens : null;
-        self.Style = grammar.Style;
     }
     
-    ,ERR: null
+    ,$grammar: null
     ,DEF: null
+    ,ERR: null
     ,LC: null
     ,BC: null
     ,rxLine: null
     ,rxStart: null
     ,rxEnd: null
-    ,Keywords: null
-    ,cTokens: null
-    ,Tokens: null
-    ,Style: null
 
     ,dispose: function( ) {
         var self = this;
-        self.ERR = null;
+        self.$grammar = null;
         self.DEF = null;
+        self.ERR = null;
         self.LC = null;
         self.BC = null;
         self.rxLine = null;
         self.rxStart = null;
         self.rxEnd = null;
-        self.Keywords = null;
-        self.cTokens = null;
-        self.Tokens = null;
-        self.Style = null;
         return self;
     }
     
@@ -195,10 +184,9 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
     
     // ACE Tokenizer compatible
     ,getLineTokens: function( line, state, row ) {
-        var self = this, i, rewind, rewind2, ci, tokenizer, action,
-            interleavedCommentTokens = self.cTokens, tokens = self.Tokens, numTokens = tokens.length, 
-            aceTokens, token, type, style, pos, lin,
-            stream, stack, DEFAULT = self.DEF, ERR = self.ERR, Style = self.Style
+        var self = this, grammar = self.$grammar, Style = grammar.Style, DEFAULT = self.DEF, ERR = self.ERR,
+            interleaved_comments = grammar.$interleaved, tokens = grammar.$parser, nTokens = tokens.length, 
+            i, rewind, rewind2, ci, tokenizer, action, aceTokens, token, type, style, pos, lin, stream, stack
         ;
         
         aceTokens = []; 
@@ -243,12 +231,12 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             
             while ( !stack.isEmpty() && !stream.eol() )
             {
-                if ( interleavedCommentTokens )
+                if ( interleaved_comments )
                 {
                     ci = 0; rewind2 = 0;
-                    while ( ci < interleavedCommentTokens.length )
+                    while ( ci < interleaved_comments.length )
                     {
-                        tokenizer = interleavedCommentTokens[ci++];
+                        tokenizer = interleaved_comments[ci++];
                         type = tokenizer.get(stream, state);
                         if ( false !== type )
                         {
@@ -317,7 +305,7 @@ var Parser = Class(ace_require('ace/tokenizer').Tokenizer, {
             if ( rewind ) continue;
             if ( stream.eol() ) break;
             
-            for (i=0; i<numTokens; i++)
+            for (i=0; i<nTokens; i++)
             {
                 pos = stream.pos;
                 tokenizer = tokens[i];
@@ -618,8 +606,6 @@ function worker_init( )
             
             ,Init: function( grammar, id ) {
                 var self = this;
-                //console.log('Init called '+id);
-                //console.log(grammar);
                 self.parser = new Parser( parse_grammar( grammar ), { 
                     DEFAULT: DEFAULTSTYLE, 
                     ERROR: DEFAULTERROR 
@@ -774,11 +760,9 @@ function get_mode( grammar, DEFAULT )
             worker.attachToDocument( session.getDocument( ) );
             // create a worker for this grammar
             worker.call('Init', [grammar_copy], function( ){
-                //console.log('Init returned');
                 // hook worker to enable error annotations
                 worker.on("error", function( e ) {
                     var errors = e.data;
-                    //console.log(errors);
                     updateAnnotations( session, errors )
                 });
 
@@ -813,7 +797,7 @@ function get_mode( grammar, DEFAULT )
 
         //$createKeywordList: function() { return parser.$createKeywordList(); },
         getKeywords: function( append ) { 
-            var keywords = parser.Keywords, i, l, word, list = [];
+            var keywords = parser.$grammar.$autocomplete, i, l, word, list = [];
             if ( keywords && keywords.length )
             {
                 for (i=0,l=keywords.length; i<l; i++)
@@ -821,15 +805,15 @@ function get_mode( grammar, DEFAULT )
                     word = keywords[i];
                     list.push({
                         name: word.word, value: word.word, meta: word.meta,
-                        score: 1000
+                        score: 1
                     });
                 }
             }
             return list;
         },
         getCompletions: function( state, session, position, prefix ) {
-            var keywords = parser.Keywords, i, l, word, w, wm, wl, list=[], 
-            pos, pos_i, case_insensitive_match = true, prefix_match = false, m1, m2, len, token, token_i;
+            var keywords = parser.$grammar.$autocomplete, i, l, word, w, wm, wl, list=[], 
+            pos, pos_i, case_insensitive_match = true, prefix_match = true, m1, m2, len, token, token_i;
             if ( keywords && keywords.length && prefix.length )
             {
                 token = prefix; token_i = token.toLowerCase(); len = token.length;
@@ -853,7 +837,7 @@ function get_mode( grammar, DEFAULT )
                     list.push({
                         name: w, value: w, meta: wm,
                         // longer matches or matches not at start have lower match score
-                        score: 1000 - 10*(wl-len) - 2*(pos<0?pos_i+10:pos)
+                        score: 1000 - 10*(wl-len) - 5*(pos<0?pos_i+3:pos)
                     });
                 }
             }
@@ -914,6 +898,20 @@ var AceGrammar = exports['@@MODULE_NAME@@'] = {
     * This way arbitrary `dialects` and `variations` can be handled more easily
     [/DOC_MARKDOWN]**/
     extend: extend,
+    
+    // pre-process a grammar (in-place)
+    /**[DOC_MARKDOWN]
+    * __Method__: `pre_process`
+    *
+    * ```javascript
+    * AceGrammar.pre_process( grammar );
+    * ```
+    *
+    * This is used internally by the `AceGrammar` Class `parse` method
+    * In order to pre-process, in-place, a `JSON grammar` 
+    * to transform any shorthand configurations to full object configurations and provide defaults.
+    [/DOC_MARKDOWN]**/
+    pre_process: pre_process_grammar,
     
     // parse a grammar
     /**[DOC_MARKDOWN]

@@ -16,7 +16,7 @@ var xml_grammar = {
         "close_tag"             : "keyword",
         "auto_close_open_tag"   : "keyword",
         "close_open_tag"        : "keyword",
-        "attribute"             : "variable",
+        "att"                   : "variable",
         "id"                    : "variable",
         "number"                : "constant.numeric",
         "string"                : "string"
