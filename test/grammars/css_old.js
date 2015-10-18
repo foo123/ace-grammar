@@ -2,11 +2,10 @@
 var css_grammar = {
     
     // prefix ID for regular expressions used in the grammar
-    "RegExpID" : "RegExp::",
+    "RegExpID": "RegExp::",
 
-    //
     // Style model
-    "Style" : {
+    "Style": {
         // lang token type  -> Editor (style) tag
         "comment":      "comment",
         "meta":         "attribute",
@@ -27,10 +26,8 @@ var css_grammar = {
         "text":         "string"
     },
 
-    
-    //
     // Lexical model
-    "Lex" : {
+    "Lex": {
         
         // comments
         "comment" : {
@@ -165,9 +162,8 @@ var css_grammar = {
         "url" : "RegExp::/url\\b/"
     },
 
-    //
     // Syntax model (optional)
-    "Syntax" : {
+    "Syntax": {
         
         "stringOrUnquotedText" : {
             "type" : "group",
@@ -209,7 +205,7 @@ var css_grammar = {
     },
 
     // what to parse and in what order
-    "Parser" : [
+    "Parser": [
         "comment",
         "meta",
         "meta2",

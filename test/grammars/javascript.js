@@ -2,11 +2,10 @@
 var js_grammar = {
         
     // prefix ID for regular expressions used in the grammar
-    "RegExpID" : "RegExp::",
+    "RegExpID": "RegExp::",
     
-    //
     // Style model
-    "Style" : {
+    "Style": {
         // lang token type  -> Editor (style) tag
         "comment":    "comment",
         "atom":       "constant",
@@ -21,10 +20,8 @@ var js_grammar = {
         "regex":      "string.regexp"
     },
 
-    
-    //
     // Lexical model
-    "Lex" : {
+    "Lex": {
         
         // comments
         "comment" : {
@@ -136,9 +133,8 @@ var js_grammar = {
         }
     },
     
-    //
     // Syntax model (optional)
-    "Syntax" : {
+    "Syntax": {
         
         "dotProperty" : {
             "type" : "group",
@@ -167,7 +163,7 @@ var js_grammar = {
     },
 
     // what to parse and in what order
-    "Parser" : [
+    "Parser": [
         "comment",
         "number",
         "string",

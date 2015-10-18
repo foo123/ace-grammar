@@ -2,11 +2,10 @@
 var css_grammar = {
     
     // prefix ID for regular expressions used in the grammar
-    "RegExpID" : "RE::",
+    "RegExpID": "RE::",
 
-    //
     // Style model
-    "Style" : {
+    "Style": {
         // lang token type  -> Editor (style) tag
         "comment"         : "comment",
         "@atrule"         : "constant",
@@ -28,10 +27,8 @@ var css_grammar = {
         "text"            : "string"
     },
 
-    
-    //
     // Lexical model
-    "Lex" : {
+    "Lex": {
         
         // comments
         "comment:comment" : {
@@ -57,13 +54,7 @@ var css_grammar = {
         ],
         
         // strings
-        "string:block" : {
-            "multiline": false,
-            "tokens" : [
-                //  start,           end of string (can be the matched regex group ie. 1 )
-                [ "RE::/(['\"])/", 1 ]
-            ]
-        },
+        "string:line-block" : [ "RE::/(['\"])/", 1 ],
         
         "text" : "RE::/[^\\(\\)\\[\\]\\{\\}'\"]+/",
         
@@ -100,49 +91,48 @@ var css_grammar = {
         
         "match_b:action" : {"push": "}"},
         "match_p:action" : {"push": ")"},
-        "matched:action" : {
+        "\\match:action" : {
             "pop": "$0",
             "msg": "Token \"$0\" does not match"
         }
     },
 
-    //
     // Syntax model (optional)
-    "Syntax" : {
+    "Syntax": {
         
-        "urlDeclaration:ngram" : "url '(' match_p (string | text) ')' matched",
+        "urlDeclaration:ngram" : "url '(' match_p (string | text) ')' \\match",
         
-        "formatDeclaration:ngram" : "format '(' match_p (string | text) ')' matched",
+        "formatDeclaration:ngram" : "format '(' match_p (string | text) ')' \\match",
         
-        "cssSelector" : "(HtmlElement | CssID | CssClass | PseudoElement | string | ',' | '(' match_p | ')' matched | '[' | ']' | '=' | '+' | '^' | '>' | '*' | '~')+",
+        "cssSelector" : "(HtmlElement | CssID | CssClass | PseudoElement | string | ',' | '(' match_p | ')' \\match | '[' | ']' | '=' | '+' | '^' | '>' | '*' | '~')+",
         
-        "RHSAssignment" : "(!important | urlDeclaration | formatDeclaration | string | number | CssAtom | ',' | '(' match_p | ')' matched)+",
+        "RHSAssignment" : "(!important | urlDeclaration | formatDeclaration | string | number | CssAtom | ',' | '(' match_p | ')' \\match)+",
         
         "cssAssignment" : "CssProperty ':' RHSAssignment ';'*",
         
         // syntax grammar (n-gram) for a block of css assignments
         "cssBlock:ngram" : [
-            [ "number '{' match_b cssAssignment* '}' matched" ],
-            [ "cssSelector '{' match_b cssAssignment* '}' matched" ]
+            [ "number '{' match_b cssAssignment* '}' \\match" ],
+            [ "cssSelector '{' match_b cssAssignment* '}' \\match" ]
         ],
         
         "@importDirective:ngram" : "@import urlDeclaration ';'",
         
-        "@keyframesDirective:ngram" : "@keyframes identifier '{' match_b cssBlock* '}' matched",
+        "@keyframesDirective:ngram" : "@keyframes identifier '{' match_b cssBlock* '}' \\match",
         
-        "cssIdentifiers" : "(identifier | number | string | ',' | '(' match_p | ')' matched)+",
+        "cssIdentifiers" : "(identifier | number | string | ',' | '(' match_p | ')' \\match)+",
         
-        "@mediaDirective:ngram" : "@media cssIdentifiers '{' match_b cssBlock* '}' matched",
+        "@mediaDirective:ngram" : "@media cssIdentifiers '{' match_b cssBlock* '}' \\match",
         
         "atruleLine" : "cssIdentifiers ';'*",
         
-        "atruleBlock" : "'{' match_b cssAssignment* '}' matched",
+        "atruleBlock" : "'{' match_b cssAssignment* '}' \\match",
         
         "@atruleDirective:ngram"  : "@atrule (atruleBlock | atruleLine)"
     },
 
     // what to parse and in what order
-    "Parser" : [
+    "Parser": [
         "comment",
         "@importDirective",
         "@keyframesDirective",

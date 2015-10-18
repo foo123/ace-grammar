@@ -244,16 +244,7 @@ if ( isWorker )
 
 function get_mode( grammar, DEFAULT ) 
 {
-    var grammar_copy = clone( grammar ),
-        parser = new AceParser(parse_grammar( grammar ), { 
-        // default return code for skipped or not-styled tokens
-        // 'text' should be used in most cases
-        DEFAULT: DEFAULT || DEFAULTSTYLE,
-        ERROR: DEFAULTERROR,
-        TOKEN: 'value'
-    }) 
-    
-    ,ace_mode
+    var ace_mode, grammar_copy = clone( grammar )
     
     ,clear_markers = function( session ) {
         if ( !session[ace_mode.$id + '$markers'] ) session[ace_mode.$id + '$markers'] = [];
@@ -485,7 +476,13 @@ function get_mode( grammar, DEFAULT )
     ace_mode = {
         $id: uuid("ace_grammar_mode")
         
-        ,$parser: parser
+        ,$parser: new AceParser(parse_grammar( grammar ), { 
+            // default return code for skipped or not-styled tokens
+            // 'text' should be used in most cases
+            DEFAULT: DEFAULT || DEFAULTSTYLE,
+            ERROR: DEFAULTERROR,
+            TOKEN: 'value'
+        })
         
         ,supportGrammarAnnotations: false
         
@@ -570,7 +567,7 @@ function get_mode( grammar, DEFAULT )
             if ( ace_mode.$parser && ace_mode.$parser.$grammar.$autocomplete && prefix.length )
             {
                 var case_insensitive_match = true, prefix_match = true,
-                    token = prefix; token_i = token[LOWER](); len = token.length;
+                    token = prefix, token_i = token[LOWER](), len = token.length;
                 return operate(ace_mode.$parser.$grammar.$autocomplete, function( list, word ){
                     var w = word.word, wm = word.meta, wl = w.length, m1, m2, pos, pos_i;
                     if ( wl >= len )
