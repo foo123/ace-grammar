@@ -9,56 +9,55 @@
 **/
 
 
-// ace supposed to be available
-var $ace$ = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; }, config: {} }, 
-    
-    ace_require = $ace$.require, ace_config = $ace$.config,
-
-    isNode = !!(("undefined" !== typeof global) && ("[object global]" === toString.call(global))),
-    isBrowser = !!(!isNode && ("undefined" !== typeof navigator)),
-    isWorker = !!(isBrowser && ("function" === typeof importScripts) && (navigator instanceof WorkerNavigator)),
-    
+var 
+isNode = !!(("undefined" !== typeof global) && ("[object global]" === toString.call(global))),
+isBrowser = !!(!isNode && ("undefined" !== typeof navigator)),
+isWorker = !!(isBrowser && ("function" === typeof importScripts) && (navigator instanceof WorkerNavigator)),
+this_path = (function(isNode, isBrowser, isWorker) {
     // Get current filename/path
-    get_current_path = function( ) {
-        var file = null, path, base, scripts;
-        if ( isNode ) 
+    var file = null, path = null, base = null, scripts;
+    if ( isNode ) 
+    {
+        // http://nodejs.org/docs/latest/api/globals.html#globals_filename
+        // this should hold the current file in node
+        file = __filename; path = __dirname; base = __dirname;
+    }
+    else if ( isWorker )
+    {
+        // https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation
+        // this should hold the current url in a web worker
+        file = self.location.href; path = file.split('/').slice(0, -1).join('/');
+    }
+    else if ( isBrowser )
+    {
+        // get last script (should be the current one) in browser
+        base = document.location.href.split('#')[0].split('?')[0].split('/').slice(0, -1).join('/');
+        if ((scripts = document.getElementsByTagName('script')) && scripts.length)
         {
-            // http://nodejs.org/docs/latest/api/globals.html#globals_filename
-            // this should hold the current file in node
-            file = __filename;
-            return { path: __dirname, file: __filename, base: __dirname };
+            file = scripts[scripts.length - 1].src;
+            path = file.split('/').slice(0, -1).join('/');
         }
-        else if ( isWorker )
-        {
-            // https://developer.mozilla.org/en-US/docs/Web/API/WorkerLocation
-            // this should hold the current url in a web worker
-            file = self.location.href;
-        }
-        else if ( isBrowser )
-        {
-            // get last script (should be the current one) in browser
-            base = document.location.href.split('#')[0].split('?')[0].split('/').slice(0, -1).join('/');
-            if ((scripts = document.getElementsByTagName('script')) && scripts.length) 
-                file = scripts[scripts.length - 1].src;
-        }
-        
-        if ( file )
-            return { path: file.split('/').slice(0, -1).join('/'), file: file, base: base };
-        return { path: null, file: null, base: null };
-    },
-    
-    this_path = get_current_path( )
+    }
+    return { path: path, file: file, base: base };
+})(isNode, isBrowser, isWorker),
+
+// ace supposed to be available
+$ace$ = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; }, config: {} }, 
+ace_require = $ace$.require, ace_config = $ace$.config,
+AceParser, AceWorker
 ;
 
 
 //
 // parser factories
-DEFAULTSTYLE = "text"; DEFAULTERROR = "invalid";
-var AceParser = Class(Parser /*ace_require('ace/tokenizer').Tokenizer*/, {
-    constructor: function AceParser( grammar, LOC ) {
+AceParser = Class(Parser /*ace_require('ace/tokenizer').Tokenizer*/, {
+    constructor: function AceParser( grammar, DEFAULT ) {
         var self = this, rxLine;
         
-        Parser.call(self, grammar, LOC);
+        Parser.call(self, grammar, "text", "invalid");
+        self.$v$ = 'value';
+        self.DEF = DEFAULT || self.$DEF;
+        self.ERR = grammar.Style.error || self.$ERR;
         
         // support comments toggle
         self.LC = grammar.$comments.line || null;
@@ -71,12 +70,12 @@ var AceParser = Class(Parser /*ace_require('ace/tokenizer').Tokenizer*/, {
             else 
                 rxLine = esc_re( self.LC );
             
-            self.rxLine = new RegExp("^(\\s*)(?:" + rxLine + ") ?");
+            self.rxLine = new_re("^(\\s*)(?:" + rxLine + ")?");
         }
         if ( self.BC )
         {
-            self.rxStart = new RegExp("^(\\s*)(?:" + esc_re(self.BC.start) + ")");
-            self.rxEnd = new RegExp("(?:" + esc_re(self.BC.end) + ")\\s*$");
+            self.rxStart = new_re("^(\\s*)(?:" + esc_re(self.BC.start) + ")");
+            self.rxEnd = new_re("(?:" + esc_re(self.BC.end) + ")\\s*$");
         }
     }
     
@@ -88,11 +87,7 @@ var AceParser = Class(Parser /*ace_require('ace/tokenizer').Tokenizer*/, {
 
     ,dispose: function( ) {
         var self = this;
-        self.LC = null;
-        self.BC = null;
-        self.rxLine = null;
-        self.rxStart = null;
-        self.rxEnd = null;
+        self.LC = self.BC = self.rxLine = self.rxStart = self.rxEnd = null;
         return Parser[PROTO].dispose.call( self );
     }
     
@@ -100,7 +95,7 @@ var AceParser = Class(Parser /*ace_require('ace/tokenizer').Tokenizer*/, {
         var self = this;
         state = self.state( 1, state );
         // ACE Tokenizer compatible
-        return {tokens:self.tokenize(line, state, row), state:state};
+        return {tokens:self.tokenize( new Stream( line ), state, row ), state:state};
     }
     
     ,indent: function( state, line, tab ) { 
@@ -108,12 +103,10 @@ var AceParser = Class(Parser /*ace_require('ace/tokenizer').Tokenizer*/, {
     }
 });
 
-    
-
 //
 // workers factories
-var WorkerClient = Class(ace_require("ace/worker/worker_client").WorkerClient, {
-    constructor: function WorkerClient( topLevelNamespaces, mod, classname ) {
+AceWorker = Class(ace_require("ace/worker/worker_client").WorkerClient, {
+    constructor: function AceWorker( topLevelNamespaces, mod, classname ) {
         var self = this, require = ace_require, config = ace_config;
         self.$sendDeltaQueue = self.$sendDeltaQueue.bind(self);
         self.changeListener = self.changeListener.bind(self);
@@ -154,93 +147,70 @@ var WorkerClient = Class(ace_require("ace/worker/worker_client").WorkerClient, {
     }
 });
 
-function worker_init( )
+function worker_init( e )
 {
-    ace.define('ace/grammar_worker', 
-        ['require', 'exports', 'module' , 'ace/worker/mirror'], 
-        function( require, exports, module ) {
-        var WorkerMirror = require("./worker/mirror").Mirror, AceGrammarWorker;
+    var msg = e ? e.data : null;
+    if ( msg && msg.load && msg.ace_worker_base ) 
+    {        
+        // import an ace base worker with needed dependencies ??
+        importScripts( msg.ace_worker_base );
         
-        // extends require("./worker/mirror").Mirror
-        exports.AceGrammarWorker = AceGrammarWorker = Class(WorkerMirror, {
-            constructor: function AceGrammarWorker( sender ) {
-                var self = this;
-                WorkerMirror.call( self, sender );
-                self.setTimeout( 300 );
-            }
+        ace.define('ace/grammar_worker', 
+            ['require', 'exports', 'module' , 'ace/worker/mirror'], 
+            function( require, exports, module ) {
+            var WorkerMirror = require("./worker/mirror").Mirror, AceGrammarWorker;
             
-            ,$parser: null
-            
-            ,Init: function( grammar, id ) {
-                var self = this;
-                self.$parser = new AceParser(parse_grammar( grammar ), { 
-                    DEFAULT: DEFAULTSTYLE,
-                    ERROR: DEFAULTERROR,
-                    TOKEN: 'value'
-                });
-                self.sender.callback( 1, id );
-            }
-            
-            
-            ,onUpdate: function( ) {
-                var self = this, sender = self.sender, parser = self.$parser,
-                    code, code_errors, err, error, errors
-                ;
-                
-                if ( !parser )
-                {
-                    sender.emit( "ok", null );
-                    return;
+            // extends require("./worker/mirror").Mirror
+            exports.AceGrammarWorker = AceGrammarWorker = Class(WorkerMirror, {
+                constructor: function AceGrammarWorker( sender ) {
+                    var self = this;
+                    WorkerMirror.call( self, sender );
+                    self.setTimeout( 300 );
                 }
                 
-                code = self.doc.getValue( );
-                if ( !code || !code.length ) 
-                {
-                    sender.emit( "ok", null );
-                    return;
+                ,$parser: null
+                
+                ,Init: function( grammar, id ) {
+                    var self = this;
+                    self.$parser = new AceParser( parse_grammar( grammar ) );
+                    self.sender.callback( 1, id );
                 }
                 
-                code_errors = parser.parse( code, ERRORS );
-                if ( !code_errors )
-                {
-                    sender.emit( "ok", null );
-                    return;
-                }
-                
-                errors = [];
-                for (err in code_errors)
-                {
-                    if ( !code_errors.hasOwnProperty(err) ) continue;
+                ,onUpdate: function( ) {
+                    var self = this, sender = self.sender, parser = self.$parser,
+                        code, code_errors, err, error, errors;
                     
-                    error = code_errors[err];
-                    errors.push({
-                        row: error[0],
-                        column: error[1],
-                        text: error[4] || "Syntax Error",
-                        type: "error",
-                        raw: error[4] || "Syntax Error",
-                        range: [error[0],error[1],error[2],error[3]]
-                    });
+                    if ( !parser ) { sender.emit( "ok", null ); return; }
+                    
+                    code = self.doc.getValue( );
+                    if ( !code || !code.length ) { sender.emit( "ok", null ); return; }
+                    
+                    code_errors = parser.parse( code, ERRORS );
+                    if ( !code_errors ) { sender.emit( "ok", null ); return; }
+                    
+                    errors = [];
+                    for (err in code_errors)
+                    {
+                        if ( !code_errors[HAS](err) ) continue;
+                        
+                        error = code_errors[err];
+                        errors.push({
+                            row: error[0],
+                            column: error[1],
+                            text: error[4] || "Syntax Error",
+                            type: "error",
+                            raw: error[4] || "Syntax Error",
+                            range: [error[0],error[1],error[2],error[3]]
+                        });
+                    }
+                    if ( errors.length )  sender.emit("error", errors);
+                    else  sender.emit("ok", null);
                 }
-                
-                if ( errors.length )  sender.emit("error", errors);
-                else  sender.emit("ok", null);
-            }
+            });
         });
-    });
+    }
 }
-if ( isWorker )
-{
-    onmessage = function( e ) {
-        var msg = e.data;
-        if ( msg.load && msg.ace_worker_base ) 
-        {        
-            // import an ace base worker with needed dependencies ??
-            importScripts( msg.ace_worker_base );
-            worker_init( );
-        } 
-    };
-}
+if ( isWorker ) onmessage = worker_init;
 
 function get_mode( grammar, DEFAULT ) 
 {
@@ -272,7 +242,7 @@ function get_mode( grammar, DEFAULT )
                     "text",
                     0/*back*/
                 ));
-                delete err.range;
+                del(err, 'range');
             }
         }
     }
@@ -341,7 +311,7 @@ function get_mode( grammar, DEFAULT )
             
             insertAtTabStop = session.getUseSoftTabs();
 
-            uncomment = function(i) {
+            uncomment = function( i ) {
                 var line = doc.getLine(i), m = line.match(regexpLine), start, end;
                 if (!m) return;
                 start = m[1].length; end = m[0].length;
@@ -349,7 +319,7 @@ function get_mode( grammar, DEFAULT )
                 doc.removeInLine(i, start, end);
             };
             
-            comment = function(i) {
+            comment = function( i ) {
                 var line = doc.getLine(i);
                 if (!ignoreBlankLines || /\S/.test(line)) 
                 {
@@ -360,16 +330,16 @@ function get_mode( grammar, DEFAULT )
                 }
             };
             
-            testRemove = function(line, i) {
+            testRemove = function( line, i ) {
                 return regexpLine.test(line);
             };
 
             shouldInsertSpace = function(line, before, after) {
                 var spaces = 0;
-                while (before-- && line.charAt(before) == " ") spaces++;
+                while (before-- && line[CHAR](before) == " ") spaces++;
                 if (spaces % tabSize != 0) return false;
                 spaces = 0;
-                while (line.charAt(after++) == " ") spaces++;
+                while (line[CHAR](after++) == " ") spaces++;
                 if (tabSize > 2)  return spaces % tabSize != tabSize - 1;
                 else  return spaces % tabSize == 0;
                 return true;
@@ -476,13 +446,7 @@ function get_mode( grammar, DEFAULT )
     ace_mode = {
         $id: uuid("ace_grammar_mode")
         
-        ,$parser: new AceParser(parse_grammar( grammar ), { 
-            // default return code for skipped or not-styled tokens
-            // 'text' should be used in most cases
-            DEFAULT: DEFAULT || DEFAULTSTYLE,
-            ERROR: DEFAULTERROR,
-            TOKEN: 'value'
-        })
+        ,$parser: new AceParser( parse_grammar( grammar ), DEFAULT )
         
         ,supportGrammarAnnotations: false
         
@@ -517,7 +481,7 @@ function get_mode( grammar, DEFAULT )
             
             // add this worker as an ace custom module
             ace_config.setModuleUrl("ace/grammar_worker", this_path.file);
-            var worker = new WorkerClient(['ace'], "ace/grammar_worker", 'AceGrammarWorker');
+            var worker = new AceWorker(['ace'], "ace/grammar_worker", 'AceGrammarWorker');
             worker.attachToDocument( session.getDocument( ) );
             // create a worker for this grammar
             worker.call('Init', [grammar_copy], function( ){
@@ -526,7 +490,6 @@ function get_mode( grammar, DEFAULT )
                     var errors = e.data;
                     update_annotations( session, errors )
                 });
-
                 worker.on("ok", function() {
                     clear_annotations( session );
                 });
@@ -566,25 +529,21 @@ function get_mode( grammar, DEFAULT )
         ,getCompletions: function( state, session, position, prefix ) {
             if ( ace_mode.$parser && ace_mode.$parser.$grammar.$autocomplete && prefix.length )
             {
-                var case_insensitive_match = true, prefix_match = true,
+                var case_insensitive_match = false, prefix_match = true,
                     token = prefix, token_i = token[LOWER](), len = token.length;
                 return operate(ace_mode.$parser.$grammar.$autocomplete, function( list, word ){
-                    var w = word.word, wm = word.meta, wl = w.length, m1, m2, pos, pos_i;
+                    var w = word.word, wl = w.length, 
+                        wm, case_insensitive_word,
+                        pos, pos_i, m1, m2, case_insensitive;
                     if ( wl >= len )
                     {
-                        if ( case_insensitive_match )
-                        {
-                            m1 = w[LOWER]();
-                            m2 = token_i;
-                        }
-                        else
-                        {
-                            m1 = w;
-                            m2 = token;
-                        }
+                        wm = word.meta;  case_insensitive_word = !!w.ci;
+                        case_insensitive = case_insensitive_match || case_insensitive_word;
+                        if ( case_insensitive ) { m1 = w[LOWER](); m2 = token_i; }
+                        else  {  m1 = w;  m2 = token; }
                         if ( (pos_i = m1.indexOf( m2 )) >= 0 && (!prefix_match || (0 === pos_i)) )
                         {
-                            pos = case_insensitive_match ? w.indexOf( token ) : pos_i;
+                            pos = case_insensitive ? w.indexOf( token ) : pos_i;
                             list.push({
                                 name: w,
                                 value: w,
@@ -672,7 +631,7 @@ var AceGrammar = exports['@@MODULE_NAME@@'] = {
     * In order to pre-process, in-place, a `JSON grammar` 
     * to transform any shorthand configurations to full object configurations and provide defaults.
     [/DOC_MARKDOWN]**/
-    pre_process: pre_process_grammar,
+    pre_process: preprocess_grammar,
     
     // parse a grammar
     /**[DOC_MARKDOWN]
