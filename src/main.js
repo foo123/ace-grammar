@@ -93,9 +93,9 @@ AceParser = Class(Parser /*ace_require('ace/tokenizer').Tokenizer*/, {
     
     ,getLineTokens: function( line, state, row ) {
         var self = this;
-        state = self.state( 1, state );
+        state = new State( 1, state );
         // ACE Tokenizer compatible
-        return {tokens:self.tokenize( new Stream( line ), state, row ), state:state};
+        return {tokens:self.tokenize( Stream( line ), state, row ), state:state};
     }
     
     ,indent: function( state, line, tab ) { 
