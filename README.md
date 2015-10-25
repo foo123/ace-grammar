@@ -33,6 +33,8 @@ See also:  [codemirror-grammar](https://github.com/foo123/codemirror-grammar) , 
 
 Code Indentation, Behaviours, Matching (ACE default), Code Folding is not handled <del>based on existing ACE folders (if available)</del>
 
+see [Modularity and Future Directions](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#modularity-and-future-directions)
+
 * handle arbitrary, user-defined, code `folding` in the `grammar` specification (e.g via `fold action` tokens)
 * handle arbitrary, user-defined, code `(de-)indentation` in the `grammar` specification (e.g via `indent action` tokens)
 * handle arbitrary, user-defined, code `matching` (e.g `brackets`, `tags`, etc..) in the `grammar` specification (e.g via `match action` tokens)
@@ -55,6 +57,7 @@ Code Indentation, Behaviours, Matching (ACE default), Code Folding is not handle
 * Generated highlight modes can support **lint-like syntax-annotation** functionality generated from the grammar
 * Generated parsers are **optimized for speed and size**
 * Can generate a syntax-highlight parser from a grammar **interactively and on-the-fly** ( see example, http://foo123.github.io/examples/ace-grammar )
+* see also [Modularity and Future Directions](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#modularity-and-future-directions)
 
 
 ###How to use:
