@@ -106,7 +106,7 @@ var AceParser = Class(Parser, {
         }
         else if ( 'markup' === FOLD || 'html' === FOLD || 'xml' === FOLD )
         {
-            self.$folders.push( AceParser.Fold.Markup( ) );
+            self.$folders.push( AceParser.Fold.MarkedUp( ) );
         }
     }
     
@@ -181,7 +181,7 @@ var AceParser = Class(Parser, {
     }
     
     ,indent: function( state, line, tab, ace ) { 
-        return line.match(Folder._.$spc$)[0]; 
+        return line.match(Stream.$SPACE$)[0]; 
     }
     
     ,iterator: function( session, ace ) {
@@ -616,17 +616,22 @@ function get_mode( grammar, DEFAULT, ace )
     // adapted from ace directly
     ,FoldMode = ace.require("ace/mode/folding/fold_mode").FoldMode
     ,AceFold = Class(FoldMode, {
-        constructor: function( folder ) {
+        constructor: function( $folder ) {
             var self = this;
             FoldMode.call( self );
-            self.folder = folder;
-            self.id = "ace_grammar_fold_mode";
+            self.$findFold = $folder;
         }
         ,getFoldWidget: function( session, foldStyle, row ) {
-            return this.folder( session, row ) ? "start" : "";
+            var self = this, fold = self.$findFold( session, foldStyle, row );
+            if ( fold )
+            {
+                if ( "markbeginend" === foldStyle && fold.end ) return "end";
+                else return "start";
+            }
+            return "";
         }
         ,getFoldWidgetRange: function( session, foldStyle, row, forceMultiline ) {
-            var fold = this.folder( session, row );
+            var fold = this.$findFold( session, foldStyle, row );
             if ( fold ) return new Range(fold[0], fold[1], fold[2], fold[3]);
         }
     })
@@ -659,7 +664,9 @@ function get_mode( grammar, DEFAULT, ace )
         ,toggleBlockComment: function( state, session, range, cursor ) { 
             return ace_mode.$parser.tCB( state, session, range, cursor, TokenIterator, Range ); 
         }
+        
         ,transformAction: function( state, action, editor, session, param ) {  }
+        
         ,getNextLineIndent: function( state, line, tab ) { 
             return ace_mode.$parser.indent( state, line, tab ); 
         }
@@ -670,13 +677,39 @@ function get_mode( grammar, DEFAULT, ace )
 
         // custom, user-defined, code folding generated from grammar
         ,supportCodeFolding: true
-        ,foldingRules: new AceFold(function( session, row ) {
-            var fold;
-            if ( ace_mode.supportCodeFolding && ace_mode.$parser && (fold = ace_mode.$parser.fold( session, row, ace )) )
+        ,$folder: function folder( session, foldStyle, row ) {
+            var fold, min_row, current_row, folder;
+            if ( ace_mode.supportCodeFolding && ace_mode.$parser )
             {
-                return fold;
+                folder = ace_mode.$parser;
+                
+                if ( "markbeginend" === foldStyle )
+                {
+                    current_row = row; min_row = MAX(0, row-500); // check up to 500 rows up
+                    fold = folder.fold( session, row, ace );
+                    if ( fold )
+                    {
+                        fold.start = true; fold.end = false;
+                        return fold;
+                    }
+                    // try to find if any block ends on this row, backwards
+                    // TODO, maybe a bit slower, than direct backwards search
+                    while ( row > min_row && (!fold || current_row !== fold[2]) ) fold = folder.fold( session, --row, ace );
+                    if ( fold && current_row === fold[2] )
+                    {
+                        fold.start = false; fold.end = true;
+                        return fold; // found end of fold, return end marker
+                    }
+                }
+                
+                else if ( fold = folder.fold( session, row, ace ) )
+                {
+                    fold.start = true; fold.end = false;
+                    return fold;
+                }
             }
-        })
+        }
+        ,foldingRules: null /* added below */
         // custom, user-defined, syntax lint-like validation/annotations generated from grammar
         ,supportGrammarAnnotations: false
         ,createWorker: function( session ) {
@@ -714,8 +747,10 @@ function get_mode( grammar, DEFAULT, ace )
         ,dispose: function( ) {
             if ( ace_mode.$parser ) ace_mode.$parser.dispose( );
             ace_mode.$parser = null;
+            ace_mode.foldingRules = ace_mode.$folder = null;
         }
     };
+    ace_mode.foldingRules = new AceFold( ace_mode.$folder );
     return ace_mode;
 }
 

@@ -120,6 +120,9 @@ function ace_grammar_demo(_editor, code, grammar)
         editor.getSession().setOptions({
             useWorker: false
         });
+        //console.log(editor.getSession().$foldStyle);
+        editor.getSession().setFoldStyle("markbeginend");
+        //console.log(editor.getSession().$foldStyle);
         //editor.clearSelection();
     });
     

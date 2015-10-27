@@ -2866,7 +2866,7 @@ function Stream( line, start, pos )
         var c, token = '', n;
         if ( true === num )
         {
-            re_token = re_token || Stream.$RE_NONSPC$;
+            re_token = re_token || Stream.$NONSPC$;
             while ( self.pos<self.length && re_token.test(c=self[CHAR](self.pos++)) ) token += c;
             return token.length ? token : null;
         }
@@ -2893,7 +2893,7 @@ function Stream( line, start, pos )
     // eat "space"
     self.spc = function( eat, re_space ) {
         var m;
-        if ( m = self.slice(self.pos).match( re_space||Stream.$RE_SPC$ ) ) 
+        if ( m = self.slice(self.pos).match( re_space||Stream.$SPC$ ) ) 
         {
             if ( false !== eat ) self.mov( m[0].length );
             return m[0];
@@ -2901,8 +2901,31 @@ function Stream( line, start, pos )
     };
     return self;
 }
-Stream.$RE_SPC$ = /^[\s\u00a0]+/;
-Stream.$RE_NONSPC$ = /[^\s\u00a0]/;
+Stream.$SPC$ = /^[\s\u00a0]+/;
+Stream.$NONSPC$ = /[^\s\u00a0]/;
+Stream.$NOTEMPTY$ = /\S/;
+Stream.$SPACE$ = /^\s*/;
+
+// Counts the column offset in a string, taking tabs into account.
+// Used mostly to find indentation.
+// adapted from codemirror countColumn
+function count_column( string, end, tabSize, startIndex, startValue )
+{
+    var i, n, nextTab;
+    if ( null == end )
+    {
+        end = string.search( Stream.$NONSPC$ );
+        if ( -1 == end ) end = string.length;
+    }
+    for (i=startIndex||0,n=startValue||0 ;;)
+    {
+        nextTab = string.indexOf( "\t", i );
+        if ( nextTab < 0 || nextTab >= end ) return n + (end - i);
+        n += nextTab - i;
+        n += tabSize - (n % tabSize);
+        i = nextTab + 1;
+    }
+}
 
 
 // parser factories
@@ -3130,34 +3153,14 @@ var Parser = Class({
     ,fold: function( ) { }
 });
 
+
 function Type( TYPE, positive )
 {
     if ( T_STR_OR_ARRAY & get_type( TYPE ) )
-        TYPE = new RegExp( map( make_array( TYPE ).sort( by_length ), esc_re ).join( '|' ) );
+        TYPE = new_re( map( make_array( TYPE ).sort( by_length ), esc_re ).join( '|' ) );
     return false === positive
     ? function( type ) { return !TYPE.test( type ); }
     : function( type ) { return TYPE.test( type ); };
-}
-
-// Counts the column offset in a string, taking tabs into account.
-// Used mostly to find indentation.
-// adapted from codemirror countColumn
-function count_column( string, end, tabSize, startIndex, startValue )
-{
-    var i, n, nextTab;
-    if ( null == end )
-    {
-        end = string.search(/[^\s\u00a0]/);
-        if ( -1 == end ) end = string.length;
-    }
-    for (i=startIndex||0,n=startValue||0 ;;)
-    {
-        nextTab = string.indexOf("\t", i);
-        if ( nextTab < 0 || nextTab >= end ) return n + (end - i);
-        n += nextTab - i;
-        n += tabSize - (n % tabSize);
-        i = nextTab + 1;
-    }
 }
 
 function next_tag( iter, T, M, L, R, S )
@@ -3184,33 +3187,7 @@ function next_tag( iter, T, M, L, R, S )
         return found;
     }
 }
-/*
-function prev_tag( iter, T, M, L, R, S )
-{
-    for (;;)
-    {
-        var gt = iter.col ? iter.text.lastIndexOf( R, iter.col-1 ) : -1;
-        if ( -1 == gt )
-        {
-            if ( iter.prev( ) )
-            {
-                iter.text = iter.line( iter.row );
-                continue;
-            }
-            else return;
-        }
-        if ( !tag_at(iter, gt+1, T) )
-        {
-            iter.col = gt;
-            continue;
-        }
-        var lastSlash = iter.text.lastIndexOf( S, gt );
-        var selfClose = lastSlash > -1 && !/\S/.test(iter.text.slice(lastSlash + 1, gt));
-        iter.col = gt + 1;
-        return selfClose ? "autoclosed" : "regular";
-    }
-}
-*/
+
 function tag_end( iter, T, M, L, R, S )
 {
     var gt, lastSlash, selfClose;
@@ -3232,36 +3209,9 @@ function tag_end( iter, T, M, L, R, S )
             continue;
         }
         lastSlash = iter.text.lastIndexOf( S, gt );
-        selfClose = lastSlash > -1 && !/\S/.test(iter.text.slice(lastSlash + 1, gt));
+        selfClose = lastSlash > -1 && !Stream.$NOTEMPTY$.test(iter.text.slice(lastSlash + 1, gt));
         iter.col = gt + 1;
         return selfClose ? "autoclosed" : "regular";
-    }
-}
-
-function tag_start( iter, T, M, L, R, S )
-{
-    var lt, match;
-    for (;;)
-    {
-        lt = iter.col ? iter.text.lastIndexOf( L, iter.col-1 ) : -1;
-        if ( -1 == lt )
-        {
-            if ( iter.prev( ) )
-            {
-                iter.text = iter.line( iter.row );
-                continue;
-            }
-            else return;
-        }
-        if ( !tag_at(iter, lt + 1, T) )
-        {
-            iter.col = lt;
-            continue;
-        }
-        M.lastIndex = lt;
-        iter.col = lt;
-        match = M.exec( iter.text );
-        if ( match && match.index == lt ) return match;
     }
 }
 
@@ -3305,72 +3255,28 @@ function find_matching_close( iter, tag, T, M, L, R, S )
         }
     }
 }
-/*
-function find_matching_open( iter, tag, T, M, L, R, S )
-{
-    var stack = [], prev, endLine, endCh, start, i;
-    for (;;)
-    {
-        prev = prev_tag(iter, T, M, L, R, S);
-        if ( !prev ) return;
-        if ( prev == "autoclosed" )
-        {
-            tag_start(iter, T, M, L, R, S);
-            continue;
-        }
-        endLine = iter.row, endCh = iter.col;
-        start = tag_start(iter, T, M, L, R, S);
-        if ( !start ) return;
-        if ( start[1] )
-        {
-            // closing tag
-            stack.push( start[2] );
-        }
-        else
-        {
-            // opening tag
-            for (i = stack.length-1; i>=0; --i)
-            {
-                if ( stack[i] == start[2] )
-                {
-                    stack.length = i;
-                    break;
-                }
-            }
-            if ( i < 0 && (!tag || tag == start[2]) )
-                return {
-                    tag: start[2],
-                    pos: [iter.row, iter.col, endLine, endCh]
-                };
-        }
-    }
-}
-*/
 
 // folder factories
 var Folder = {
     // adapted from codemirror
     
      _: {
-        $notempty$: /\S/,
-        $spc$: /^\s*/,
         $block$: /comment/,
         $comment$: /comment/
     }
     
     ,Indented: function( NOTEMPTY ) {
-        NOTEMPTY = NOTEMPTY || Folder._.$notempty$;
+        NOTEMPTY = NOTEMPTY || Stream.$NOTEMPTY$;
         
         return function( iter ) {
             var first_line, first_indentation, cur_line, cur_indentation,
-                start_pos, end_pos, last_line_in_fold, i, end,
-                row = iter.row, col = iter.col;
+                start_line = iter.row, start_pos, last_line_in_fold, end_pos, i, end;
             
-            first_line = iter.line( );
+            first_line = iter.line( start_line );
             if ( !NOTEMPTY.test( first_line ) ) return;
             first_indentation = iter.indentation( first_line );
             last_line_in_fold = null; start_pos = first_line.length;
-            for (i=row+1,end=iter.last( ); i<=end; ++i)
+            for (i=start_line+1,end=iter.last( ); i<=end; ++i)
             {
                 cur_line = iter.line( i ); cur_indentation = iter.indentation( cur_line );
                 if ( cur_indentation > first_indentation )
@@ -3391,7 +3297,7 @@ var Folder = {
                 }
             }
             // return a range
-            if ( last_line_in_fold ) return [row, start_pos, last_line_in_fold, end_pos];
+            if ( last_line_in_fold ) return [start_line, start_pos, last_line_in_fold, end_pos];
         };
     }
 
@@ -3450,10 +3356,10 @@ var Folder = {
         return function( ){ };
     }
     
-    ,Markup: function( T, L, R, S, M ) {
+    ,MarkedUp: function( T, L, R, S, M ) {
         T = T || Type(/\btag\b/);
         L = L || "<"; R = R || ">"; S = S || "/";
-        M = M || new RegExp(L+"("+S+"?)([a-zA-Z_][a-zA-Z0-9_\\-:]*)","g");
+        M = M || new_re( L + "(" + S + "?)([a-zA-Z_\\-][a-zA-Z0-9_\\-:]*)", "g" );
 
         return function( iter ) {
             iter.col = 0; iter.min = iter.first( ); iter.max = iter.last( );
@@ -3585,7 +3491,7 @@ var AceParser = Class(Parser, {
         }
         else if ( 'markup' === FOLD || 'html' === FOLD || 'xml' === FOLD )
         {
-            self.$folders.push( AceParser.Fold.Markup( ) );
+            self.$folders.push( AceParser.Fold.MarkedUp( ) );
         }
     }
     
@@ -3660,7 +3566,7 @@ var AceParser = Class(Parser, {
     }
     
     ,indent: function( state, line, tab, ace ) { 
-        return line.match(Folder._.$spc$)[0]; 
+        return line.match(Stream.$SPACE$)[0]; 
     }
     
     ,iterator: function( session, ace ) {
@@ -4095,17 +4001,22 @@ function get_mode( grammar, DEFAULT, ace )
     // adapted from ace directly
     ,FoldMode = ace.require("ace/mode/folding/fold_mode").FoldMode
     ,AceFold = Class(FoldMode, {
-        constructor: function( folder ) {
+        constructor: function( $folder ) {
             var self = this;
             FoldMode.call( self );
-            self.folder = folder;
-            self.id = "ace_grammar_fold_mode";
+            self.$findFold = $folder;
         }
         ,getFoldWidget: function( session, foldStyle, row ) {
-            return this.folder( session, row ) ? "start" : "";
+            var self = this, fold = self.$findFold( session, foldStyle, row );
+            if ( fold )
+            {
+                if ( "markbeginend" === foldStyle && fold.end ) return "end";
+                else return "start";
+            }
+            return "";
         }
         ,getFoldWidgetRange: function( session, foldStyle, row, forceMultiline ) {
-            var fold = this.folder( session, row );
+            var fold = this.$findFold( session, foldStyle, row );
             if ( fold ) return new Range(fold[0], fold[1], fold[2], fold[3]);
         }
     })
@@ -4138,7 +4049,9 @@ function get_mode( grammar, DEFAULT, ace )
         ,toggleBlockComment: function( state, session, range, cursor ) { 
             return ace_mode.$parser.tCB( state, session, range, cursor, TokenIterator, Range ); 
         }
+        
         ,transformAction: function( state, action, editor, session, param ) {  }
+        
         ,getNextLineIndent: function( state, line, tab ) { 
             return ace_mode.$parser.indent( state, line, tab ); 
         }
@@ -4149,13 +4062,39 @@ function get_mode( grammar, DEFAULT, ace )
 
         // custom, user-defined, code folding generated from grammar
         ,supportCodeFolding: true
-        ,foldingRules: new AceFold(function( session, row ) {
-            var fold;
-            if ( ace_mode.supportCodeFolding && ace_mode.$parser && (fold = ace_mode.$parser.fold( session, row, ace )) )
+        ,$folder: function folder( session, foldStyle, row ) {
+            var fold, min_row, current_row, folder;
+            if ( ace_mode.supportCodeFolding && ace_mode.$parser )
             {
-                return fold;
+                folder = ace_mode.$parser;
+                
+                if ( "markbeginend" === foldStyle )
+                {
+                    current_row = row; min_row = MAX(0, row-500); // check up to 500 rows up
+                    fold = folder.fold( session, row, ace );
+                    if ( fold )
+                    {
+                        fold.start = true; fold.end = false;
+                        return fold;
+                    }
+                    // try to find if any block ends on this row, backwards
+                    // TODO, maybe a bit slower, than direct backwards search
+                    while ( row > min_row && (!fold || current_row !== fold[2]) ) fold = folder.fold( session, --row, ace );
+                    if ( fold && current_row === fold[2] )
+                    {
+                        fold.start = false; fold.end = true;
+                        return fold; // found end of fold, return end marker
+                    }
+                }
+                
+                else if ( fold = folder.fold( session, row, ace ) )
+                {
+                    fold.start = true; fold.end = false;
+                    return fold;
+                }
             }
-        })
+        }
+        ,foldingRules: null /* added below */
         // custom, user-defined, syntax lint-like validation/annotations generated from grammar
         ,supportGrammarAnnotations: false
         ,createWorker: function( session ) {
@@ -4193,8 +4132,10 @@ function get_mode( grammar, DEFAULT, ace )
         ,dispose: function( ) {
             if ( ace_mode.$parser ) ace_mode.$parser.dispose( );
             ace_mode.$parser = null;
+            ace_mode.foldingRules = ace_mode.$folder = null;
         }
     };
+    ace_mode.foldingRules = new AceFold( ace_mode.$folder );
     return ace_mode;
 }
 
