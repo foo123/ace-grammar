@@ -1,6 +1,7 @@
 function ace_grammar_demo(_editor, code, grammar)
 {
-    document.getElementById('version').innerHTML = AceGrammar.VERSION;
+    document.getElementById('editor-version').innerHTML = '1.2.0';
+    document.getElementById('grammar-version').innerHTML = AceGrammar.VERSION;
     
     var editor = ace.edit(_editor);
     // 2. parse the grammar into an ACE syntax-highlight mode
@@ -97,6 +98,10 @@ function ace_grammar_demo(_editor, code, grammar)
     
     // enable syntax validation
     mode.supportGrammarAnnotations = true;
+    // enable auto-completion
+    mode.supportAutoCompletion = true;
+    // enable code-folding
+    mode.supportCodeFolding = true;
     
     // 3. use it with ACE
     ace.config.loadModule("ace/ext/language_tools", function() {
@@ -112,6 +117,9 @@ function ace_grammar_demo(_editor, code, grammar)
         });
         editor.setValue( code, -1 );
         editor.getSession().setMode( mode );
+        editor.getSession().setOptions({
+            useWorker: false
+        });
         //editor.clearSelection();
     });
     

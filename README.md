@@ -31,7 +31,11 @@ See also:  [codemirror-grammar](https://github.com/foo123/codemirror-grammar) , 
 
 ###Todo
 
-Code Indentation, Behaviours, Matching (ACE default), Code Folding is not handled <del>based on existing ACE folders (if available)</del>
+Code Indentation, Behaviours, Matching (ACE default), <del>Code Folding is not handled</del>
+
+
+*generic code-folders implementations have been added, specified in grammar.Extra.fold option*
+
 
 see [Modularity and Future Directions](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#modularity-and-future-directions)
 
@@ -74,6 +78,12 @@ var xml_grammar = {
 // prefix ID for regular expressions, represented as strings, used in the grammar
 "RegExpID"                          : "RE::",
 
+"Extra"                     : {
+    
+    "fold"                  : "xml"
+    
+},
+    
 // Style model
 "Style"                             : {
     
@@ -83,10 +93,7 @@ var xml_grammar = {
     ,"comment"                      : "comment"
     ,"cdata"                        : "string"
     ,"atom"                         : "string"
-    ,"open_tag"                     : "keyword"
-    ,"close_tag"                    : "keyword"
-    ,"auto_close_open_tag"          : "keyword"
-    ,"close_open_tag"               : "keyword"
+    ,"tag"                          : "keyword.tag"
     ,"attribute"                    : "variable"
     ,"number"                       : "constant.numeric"
     ,"string"                       : "string"
@@ -126,8 +133,8 @@ var xml_grammar = {
 "Syntax"                            : {
      
      "tag_att"                      : "'id'.attribute unique_att '=' string unique_id | attribute unique_att '=' (string | number)"
-    ,"start_tag"                    : "open_tag tag_ctx tag_opened tag_att* ('>'.tag | '/>'.tag tag_autoclosed) \\tag_ctx"
-    ,"end_tag"                      : "close_tag tag_closed"
+    ,"start_tag"                    : "open_tag.tag tag_ctx tag_opened tag_att* ('>'.tag | '/>'.tag tag_autoclosed) \\tag_ctx"
+    ,"end_tag"                      : "close_tag.tag tag_closed"
     ,"xml"                          : "(^^1 declaration? doctype?) (declaration.error out_of_place | doctype.error out_of_place | comment | meta | cdata | start_tag | end_tag | atom | text)*"
     
 },
@@ -150,8 +157,8 @@ editor.getSession().setMode( xml_mode );
 
 Result:
 
-![xml-grammar-1](/test/grammar-xml-annotations-1.png)
-![xml-grammar-2](/test/grammar-xml-annotations-2.png)
+![xml-grammar-1](/test/grammar-xml.png)
+![xml-grammar-2](/test/grammar-xml-2.png)
 
 
 
@@ -159,14 +166,11 @@ Result:
 
 
 ![js-recursive-grammar](/test/grammar-js-recursion.png)
-![js-recursive-grammar](/test/grammar-js-recursion-2.png)
-
+![js-recursive-grammar-autocomplete](/test/grammar-js-recursion-2.png)
 
 ![css-grammar](/test/grammar-css.png)
 
-
 ![python-grammar](/test/grammar-python.png)
-
 
 ![php-grammar](/test/grammar-php.png)
 

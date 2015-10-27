@@ -28,7 +28,7 @@
     </head>
     <body>
         
-        <h3>ACE (ver <span id="version">0</span>): Dynamic PHP Grammar</h3>
+        <h3>ACE (v.<span id="editor-version">0</span>) Grammar (v.<span id="grammar-version">0</span>): Dynamic PHP Grammar</h3>
 
 <pre id="editor"></pre>
 <textarea id="code" style="display:none">$a = (isset($var) && NULL==$b) ? true : false;
@@ -66,10 +66,7 @@ function a_function( &$v1, $v2 )
 
         <script>
         // <![CDATA[
-        
-        // use it
         ace_grammar_demo("editor", document.getElementById("code").value, php_grammar);
-        
         // ]]>
         </script>
     </body>

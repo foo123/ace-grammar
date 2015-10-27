@@ -4,6 +4,11 @@ var python_grammar = {
 // prefix ID for regular expressions, represented as strings, used in the grammar
 "RegExpID"                  : "RE::",
 
+"Extra"                     : {
+    
+    "fold"                  : "indent"
+},
+    
 // Style model
 "Style"                     : {
     

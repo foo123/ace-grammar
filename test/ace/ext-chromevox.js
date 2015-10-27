@@ -1,4 +1,4 @@
-ace.define('ace/ext/chromevox', ['require', 'exports', 'module' , 'ace/editor', 'ace/config'], function(require, exports, module) {
+ace.define("ace/ext/chromevox",["require","exports","module","ace/editor","ace/config"], function(require, exports, module) {
 var cvoxAce = {};
 cvoxAce.SpeechProperty;
 cvoxAce.Cursor;
@@ -287,14 +287,13 @@ var onSelectionChange = function(evt) {
     cvox.Api.speak('unselected');
   }
 };
-var onChange = function(evt) {
-  var data = evt.data;
+var onChange = function(delta) {
   switch (data.action) {
-  case 'removeText':
+  case 'remove':
     cvox.Api.speak(data.text, 0, DELETED_PROP);
     changed = true;
     break;
-  case 'insertText':
+  case 'insert':
     cvox.Api.speak(data.text, 0);
     changed = true;
     break;
@@ -535,3 +534,7 @@ require('../config').defineOptions(Editor.prototype, 'editor', {
 });
 
 });
+                (function() {
+                    ace.require(["ace/ext/chromevox"], function() {});
+                })();
+            

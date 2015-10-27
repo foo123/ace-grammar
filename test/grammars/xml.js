@@ -4,6 +4,12 @@ var xml_grammar = {
 // prefix ID for regular expressions, represented as strings, used in the grammar
 "RegExpID"                          : "RE::",
 
+"Extra"                     : {
+    
+    "fold"                  : "xml"
+    
+},
+    
 // Style model
 "Style"                             : {
     
@@ -13,10 +19,7 @@ var xml_grammar = {
     ,"comment"                      : "comment"
     ,"cdata"                        : "string"
     ,"atom"                         : "string"
-    ,"open_tag"                     : "keyword"
-    ,"close_tag"                    : "keyword"
-    ,"auto_close_open_tag"          : "keyword"
-    ,"close_open_tag"               : "keyword"
+    ,"tag"                          : "keyword.tag"
     ,"attribute"                    : "variable"
     ,"number"                       : "constant.numeric"
     ,"string"                       : "string"
@@ -56,8 +59,8 @@ var xml_grammar = {
 "Syntax"                            : {
      
      "tag_att"                      : "'id'.attribute unique_att '=' string unique_id | attribute unique_att '=' (string | number)"
-    ,"start_tag"                    : "open_tag tag_ctx tag_opened tag_att* ('>'.tag | '/>'.tag tag_autoclosed) \\tag_ctx"
-    ,"end_tag"                      : "close_tag tag_closed"
+    ,"start_tag"                    : "open_tag.tag tag_ctx tag_opened tag_att* ('>'.tag | '/>'.tag tag_autoclosed) \\tag_ctx"
+    ,"end_tag"                      : "close_tag.tag tag_closed"
     ,"xml"                          : "(^^1 declaration? doctype?) (declaration.error out_of_place | doctype.error out_of_place | comment | meta | cdata | start_tag | end_tag | atom | text)*"
     
 },

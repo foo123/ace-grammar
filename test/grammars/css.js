@@ -3,6 +3,12 @@ var css_grammar = {
     
 "RegExpID"                  : "RE::",
 
+"Extra"                     : {
+    
+    "fold"                  : "brace"
+    
+},
+    
 // Style model
 "Style"                     : {
     
