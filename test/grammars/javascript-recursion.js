@@ -56,13 +56,13 @@ var js_grammar = {
                                     ]
     ,"string:escaped-block"         : ["RE::/(['\"])/",   1]
     ,"regex:escaped-line-block"     : ["/",    "RE::#/[gimy]{0,4}#"]
-    ,"atom"                         : {"autocomplete":true,"meta":"JavaScript ATOM","tokens":[
+    ,"atom"                         : {"autocomplete":true,"meta":"JavaScript Atom","tokens":[
                                     "this",
                                     "true", "false", 
                                     "null", "undefined", 
                                     "NaN", "Infinity"
                                     ]}
-    ,"keyword"                      : {"autocomplete":true,"meta":"JavaScript KEYWORD","tokens":[ 
+    ,"keyword"                      : {"autocomplete":true,"meta":"JavaScript Keyword","tokens":[ 
                                     "if", "while", "with", "else", "do", "try", "finally",
                                     "return", "break", "continue", "new", "delete", "throw",
                                     "var", "const", "let", "function", "catch",

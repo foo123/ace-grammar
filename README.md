@@ -5,7 +5,7 @@ __Transform a JSON grammar into an ACE syntax-highlight parser__
 
 
 
-A simple and light-weight (~ 30kB minified, ~ 11kB zipped) [ACE](https://github.com/ajaxorg/ace) add-on
+A simple and light-weight (~ 40kB minified, ~ 15kB zipped) [ACE](https://github.com/ajaxorg/ace) add-on
 
 to generate syntax-highlight parsers (ace modes) from a grammar specification in JSON format.
 
@@ -31,21 +31,16 @@ See also:  [codemirror-grammar](https://github.com/foo123/codemirror-grammar) , 
 
 ###Todo
 
-Code Indentation, Behaviours, Matching (ACE default), <del>Code Folding is not handled</del>
+Code Indentation, Behaviours, Matching are ACE defaults, see [Modularity and Future Directions](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#modularity-and-future-directions)
 
 
-*generic code-folders implementations have been added, specified in grammar.Extra.fold option*
-
-
-see [Modularity and Future Directions](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#modularity-and-future-directions)
-
-* handle arbitrary, user-defined, code `folding` in the `grammar` specification (e.g via `fold action` tokens)
 * handle arbitrary, user-defined, code `(de-)indentation` in the `grammar` specification (e.g via `indent action` tokens)
 * handle arbitrary, user-defined, code `matching` (e.g `brackets`, `tags`, etc..) in the `grammar` specification (e.g via `match action` tokens)
 * handle arbitrary, user-defined, `(operator) precedence` relations in the `grammar` specification (e.g via `precedence action` tokens)
 * handle arbitrary, user-defined, `local/global/scoped` relations in the `grammar` specification (e.g via `scope action` tokens)
 * and so on..
 * enable grammar add-on to pre-compile a grammar specification directly into mode source code, so it can be used without the add-on as standalone mode [TODO, maybe]
+
 
 
 ###Features
@@ -59,6 +54,7 @@ see [Modularity and Future Directions](https://github.com/foo123/editor-grammar/
 * `Grammar` can define [*action* tokens](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#action-tokens) to perform *complex context-specific* parsing functionality, including **associated tag matching** and **duplicate identifiers** (see for example `xml.grammar` example) (**NEW feature**)
 * Generated highlight modes can support **toggle comments** and **keyword autocompletion** functionality if defined in the grammar
 * Generated highlight modes can support **lint-like syntax-annotation** functionality generated from the grammar
+* Generated highlight modes can support custom, user-defined, **code folding** functionality from the [grammar `fold` model](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#code-folding)  (**NEW feature**)
 * Generated parsers are **optimized for speed and size**
 * Can generate a syntax-highlight parser from a grammar **interactively and on-the-fly** ( see example, http://foo123.github.io/examples/ace-grammar )
 * see also [Modularity and Future Directions](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#modularity-and-future-directions)
@@ -155,6 +151,7 @@ xml_mode.supportGrammarAnnotations = true;
 
 // enable user-defined autocompletion (if defined)
 xml_mode.supportAutoCompletion = true;
+xml_mode.autocompleter.options = {prefixMatch:true, caseInsensitiveMatch:false};
 
 // 3. use it with ACE
 var editor = ace.edit("editor");

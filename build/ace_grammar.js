@@ -3175,8 +3175,8 @@ function Type( TYPE, positive )
     if ( T_STR_OR_ARRAY & get_type( TYPE ) )
         TYPE = new_re( '\\b(' + map( make_array( TYPE ).sort( by_length ), esc_re ).join( '|' ) + ')\\b' );
     return false === positive
-    ? function( type ) { return !TYPE.test( type ); }
-    : function( type ) { return TYPE.test( type ); };
+    ? function( type ) { return !type || !TYPE.test( type ); }
+    : function( type ) { return !!type && TYPE.test( type ); };
 }
 
 function next_tag( iter, T, M, L, R, S )
@@ -3194,7 +3194,7 @@ function next_tag( iter, T, M, L, R, S )
             }
             else return;
         }
-        if ( !(type=iter.token(iter.row, found.index+1)) || !T( type ) )
+        if ( !T( iter.token(iter.row, found.index+1) ) )
         {
             iter.col = found.index + 1;
             continue;
@@ -3210,7 +3210,7 @@ function end_tag( iter, T, M, L, R, S )
     for (;;)
     {
         gt = iter.text.indexOf( R, iter.col );
-        if ( -1 == gt )
+        if ( -1 === gt )
         {
             if ( iter.next( ) )
             {
@@ -3219,7 +3219,7 @@ function end_tag( iter, T, M, L, R, S )
             }
             else return;
         }
-        if ( !(type=iter.token(iter.row, gt+1)) || !T( type ) )
+        if ( !T( iter.token(iter.row, gt+1) ) )
         {
             iter.col = gt + 1;
             continue;
@@ -3237,13 +3237,13 @@ var Folder = {
     
      Pattern: function( S, E, T ) {
         // TODO
-        return function( ){ };
+        return function fold_pattern( ){ };
     }
     
     ,Indented: function( NOTEMPTY ) {
         NOTEMPTY = NOTEMPTY || Stream.$NOTEMPTY$;
         
-        return function( iter ) {
+        return function fold_indentation( iter ) {
             var first_line, first_indentation, cur_line, cur_indentation,
                 start_line = iter.row, start_pos, last_line_in_fold, end_pos, i, end;
             
@@ -3280,24 +3280,24 @@ var Folder = {
         if ( !S || !E ) return function( ){ };
         T = T || TRUE;
 
-        return function( iter ) {
+        return function fold_delimiter( iter ) {
             var line = iter.row, col = iter.col,
-                lineText, startCh, at, pass, found,
+                lineText, startCh, at, pass, found, tokenType,
                 depth, lastLine, end, endCh, i, text, pos, nextOpen, nextClose;
             
             lineText = iter.line( line );
             for (at=col,pass=0 ;;)
             {
                 var found = at<=0 ? -1 : lineText.lastIndexOf( S, at-1 );
-                if ( -1 == found )
+                if ( -1 === found )
                 {
-                    if ( 1 == pass ) return;
+                    if ( 1 === pass ) return;
                     pass = 1;
                     at = lineText.length;
                     continue;
                 }
-                if ( 1 == pass && found < col ) return;
-                if ( T( iter.token( line, found+1 ) ) )
+                if ( 1 === pass && found < col ) return;
+                if ( T( tokenType = iter.token( line, found+1 ) ) )
                 {
                     startCh = found + S.length;
                     break;
@@ -3307,7 +3307,7 @@ var Folder = {
             depth = 1; lastLine = iter.last();
             outer: for (i=line; i<=lastLine; ++i)
             {
-                text = iter.line( i ); pos = i==line ? startCh : 0;
+                text = iter.line( i ); pos = i===line ? startCh : 0;
                 for (;;)
                 {
                     nextOpen = text.indexOf( S, pos );
@@ -3315,9 +3315,12 @@ var Folder = {
                     if ( nextOpen < 0 ) nextOpen = text.length;
                     if ( nextClose < 0 ) nextClose = text.length;
                     pos = MIN( nextOpen, nextClose );
-                    if ( pos == text.length ) break;
-                    if ( pos == nextOpen ) ++depth;
-                    else if ( !--depth ) { end = i; endCh = pos; break outer; }
+                    if ( pos >= text.length ) break;
+                    if ( iter.token(i, pos+1) == tokenType )
+                    {
+                        if ( pos === nextOpen ) ++depth;
+                        else if ( !--depth ) { end = i; endCh = pos; break outer; }
+                    }
                     ++pos;
                 }
             }
@@ -3331,43 +3334,45 @@ var Folder = {
         L = L || "<"; R = R || ">"; S = S || "/";
         M = M || new_re( esc_re(L) + "(" + esc_re(S) + "?)([a-zA-Z_\\-][a-zA-Z0-9_\\-:]*)", "g" );
 
-        return function( iter ) {
+        return function fold_markup( iter ) {
             iter.col = 0; iter.min = iter.first( ); iter.max = iter.last( );
             iter.text = iter.line( iter.row );
-            var openTag, end, start, close, tagName, startLine = iter.row;
+            var openTag, end, start, close, tagName, startLine = iter.row,
+                stack, next, startCh, i;
             for (;;)
             {
                 openTag = next_tag(iter, T, M, L, R, S);
-                if ( !openTag || iter.row != startLine || !(end = end_tag(iter, T, M, L, R, S)) ) return;
-                if ( !openTag[1] && end != "autoclosed" )
+                if ( !openTag || iter.row !== startLine || !(end = end_tag(iter, T, M, L, R, S)) ) return;
+                if ( !openTag[1] && "autoclosed" !== end  )
                 {
                     start = [iter.row, iter.col]; tagName = openTag[2]; close = null;
                     // start find_matching_close
-                    var stack = [], next, startCh, i;
+                    stack = [];
                     for (;;)
                     {
                         next = next_tag(iter, T, M, L, R, S);
                         startLine = iter.row; startCh = iter.col - (next ? next[0].length : 0);
                         if ( !next || !(end = end_tag(iter, T, M, L, R, S)) ) return;
-                        if ( end == "autoclosed" ) continue;
+                        if ( "autoclosed" === end  ) continue;
                         if ( next[1] )
                         {
                             // closing tag
                             for (i=stack.length-1; i>=0; --i)
                             {
-                                if ( stack[i] == next[2] )
+                                if ( stack[i] === next[2] )
                                 {
                                     stack.length = i;
                                     break;
                                 }
                             }
-                            if ( i < 0 && (!tagName || tagName == next[2]) )
+                            if ( i < 0 && (!tagName || tagName === next[2]) )
                             {
-                                close = {
+                                /*close = {
                                     tag: next[2],
                                     pos: [startLine, startCh, iter.row, iter.col]
                                 };
-                                break;
+                                break;*/
+                                return [start[0], start[1], startLine, startCh];
                             }
                         }
                         else
@@ -3377,10 +3382,10 @@ var Folder = {
                         }
                     }
                     // end find_matching_close
-                    if ( close )
+                    /*if ( close )
                     {
                         return [start[0], start[1], close.pos[0], close.pos[1]];
-                    }
+                    }*/
                 }
             }
         };
@@ -3432,6 +3437,9 @@ this_path = (function(isNode, isBrowser, isWorker) {
     return { path: path, file: file, base: base };
 })(isNode, isBrowser, isWorker),
 
+// browser caches worker source file, even with reset/reload, try to not cache
+NOCACHE = '?nocache=' + uuid('nonce') + '_' + (~~(1000*Math.random( ))),
+
 // ace supposed to be available
 $ace$ = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; }, config: {} }
 ;
@@ -3440,8 +3448,8 @@ $ace$ = (typeof ace !== 'undefined') ? ace : { require: function() { return { };
 //
 // parser factories
 var AceParser = Class(Parser, {
-    constructor: function AceParser( grammar, DEFAULT ) {
-        var self = this, rxLine, FOLD = null, TYPE;
+    constructor: function AceParser( grammar, DEFAULT, withFolders ) {
+        var self = this, FOLD = null, TYPE;
         
         Parser.call(self, grammar, "text", "invalid");
         self.$v$ = 'value';
@@ -3451,22 +3459,9 @@ var AceParser = Class(Parser, {
         // support comments toggle
         self.LC = grammar.$comments.line || null;
         self.BC = grammar.$comments.block ? { start: grammar.$comments.block[0][0], end: grammar.$comments.block[0][1] } : null;
-        if ( self.LC )
-        {
-            if ( T_ARRAY & get_type(self.LC) ) 
-                rxLine = map( self.LC, esc_re ).join( "|" );
-            
-            else 
-                rxLine = esc_re( self.LC );
-            
-            self.rxLine = new_re("^(\\s*)(?:" + rxLine + ")?");
-        }
-        if ( self.BC )
-        {
-            self.rxStart = new_re("^(\\s*)(?:" + esc_re(self.BC.start) + ")");
-            self.rxEnd = new_re("(?:" + esc_re(self.BC.end) + ")\\s*$");
-        }
         
+        if ( false !== withFolders )
+        {
         // comment-block folding
         if ( grammar.$comments.block && grammar.$comments.block.length )
         {
@@ -3506,17 +3501,15 @@ var AceParser = Class(Parser, {
             }
             }, 0, FOLD.length-1, FOLD);
         }
+        }
     }
     
     ,LC: null
     ,BC: null
-    ,rxLine: null
-    ,rxStart: null
-    ,rxEnd: null
 
     ,dispose: function( ) {
         var self = this;
-        self.LC = self.BC = self.rxLine = self.rxStart = self.rxEnd = null;
+        self.LC = self.BC = null;
         return Parser[PROTO].dispose.call( self );
     }
     
@@ -3527,21 +3520,6 @@ var AceParser = Class(Parser, {
         return {tokens:self.tokenize( Stream( line ), state, row ), state:state};
     }
     
-    ,keywords: function( append, ace ) { 
-        var self = this;
-        if ( self.$grammar.$autocomplete )
-        {
-            return map(self.$grammar.$autocomplete, function( word ){
-                return {
-                    name: word.word,
-                    value: word.word,
-                    meta: word.meta,
-                    score: 1
-                };
-            });
-        }
-        return [];
-    }
     ,autocomplete: function( state, session, position, prefix, options, ace ) {
         var self = this;
         if ( self.$grammar.$autocomplete && prefix.length )
@@ -3576,10 +3554,6 @@ var AceParser = Class(Parser, {
             }, []);
         }
         return [];
-    }
-    
-    ,indent: function( state, line, tab, ace ) { 
-        return line.match(Stream.$SPACE$)[0]; 
     }
     
     ,iterator: function( session, ace ) {
@@ -3618,193 +3592,6 @@ var AceParser = Class(Parser, {
                     return fold;
         }
     }
-    
-    // toggle comment lines
-    ,tCL: function( state, session, startRow, endRow ) {
-        var parser = self, doc = session.doc,
-            ignoreBlankLines = true,
-            shouldRemove = true,
-            minIndent = Infinity,
-            tabSize = session.getTabSize(),
-            insertAtTabStop = false,
-            comment, uncomment, testRemove, shouldInsertSpace,
-            lineCommentStart, lineCommentEnd, regexpStart, regexpEnd, 
-            minEmptyLength, regexpLine, commentWithSpace
-        ;
-        
-        if ( !parser.LC ) 
-        {
-            if ( !parser.BC ) return false;
-            
-            lineCommentStart = parser.BC.start;
-            lineCommentEnd = parser.BC.end;
-            regexpStart = parser.rxStart;
-            regexpEnd = parser.rxEnd;
-
-            comment = function( i ) {
-                var line = doc.getLine(i);
-                if (testRemove(line, i)) return;
-                if (!ignoreBlankLines || /\S/.test(line)) 
-                {
-                    doc.insertInLine({row: i, column: line.length}, lineCommentEnd);
-                    doc.insertInLine({row: i, column: minIndent}, lineCommentStart);
-                }
-            };
-
-            uncomment = function( i ) {
-                var line = doc.getLine(i), m;
-                if (m = line.match(regexpEnd))
-                    doc.removeInLine(i, line.length - m[0].length, line.length);
-                if (m = line.match(regexpStart))
-                    doc.removeInLine(i, m[1].length, m[0].length);
-            };
-
-            testRemove = function( line, row ) {
-                if (regexpStart.test(line)) return true;
-                var tokens = session.getTokens(row);
-                for (var i = 0; i < tokens.length; i++) 
-                {
-                    if (tokens[i].type === 'comment') return true;
-                }
-            };
-        } 
-        else 
-        {
-            lineCommentStart = (T_ARRAY === get_type(parser.LC)) ? parser.LC[0] : parser.LC;
-            regexpLine = parser.rxLine;
-            commentWithSpace = lineCommentStart + " ";
-            
-            insertAtTabStop = session.getUseSoftTabs();
-
-            uncomment = function( i ) {
-                var line = doc.getLine(i), m = line.match(regexpLine), start, end;
-                if (!m) return;
-                start = m[1].length; end = m[0].length;
-                if (!shouldInsertSpace(line, start, end) && m[0][end - 1] == " ")  end--;
-                doc.removeInLine(i, start, end);
-            };
-            
-            comment = function( i ) {
-                var line = doc.getLine(i);
-                if (!ignoreBlankLines || /\S/.test(line)) 
-                {
-                    if (shouldInsertSpace(line, minIndent, minIndent))
-                        doc.insertInLine({row: i, column: minIndent}, commentWithSpace);
-                    else
-                        doc.insertInLine({row: i, column: minIndent}, lineCommentStart);
-                }
-            };
-            
-            testRemove = function( line, i ) {
-                return regexpLine.test(line);
-            };
-
-            shouldInsertSpace = function(line, before, after) {
-                var spaces = 0;
-                while (before-- && line[CHAR](before) == " ") spaces++;
-                if (spaces % tabSize != 0) return false;
-                spaces = 0;
-                while (line[CHAR](after++) == " ") spaces++;
-                if (tabSize > 2)  return spaces % tabSize != tabSize - 1;
-                else  return spaces % tabSize == 0;
-                return true;
-            };
-        }
-
-        minEmptyLength = Infinity;
-        
-        iterate(function( i ) {
-            var line = doc.getLine(i), indent = line.search(/\S/);
-            if (indent !== -1) 
-            {
-                if (indent < minIndent)  minIndent = indent;
-                if (shouldRemove && !testRemove(line, i)) shouldRemove = false;
-            } 
-            else if (minEmptyLength > line.length)
-            {
-                minEmptyLength = line.length;
-            }
-        }, startRow, endRow);
-
-        if (Infinity == minIndent) 
-        {
-            minIndent = minEmptyLength;
-            ignoreBlankLines = false;
-            shouldRemove = false;
-        }
-
-        if (insertAtTabStop && minIndent % tabSize != 0)
-            minIndent = Math.floor(minIndent / tabSize) * tabSize;
-
-        iterate(shouldRemove ? uncomment : comment, startRow, endRow);
-    }
-
-    // toggle block comment
-    ,tCB: function( state, session, range, cursor, TokenIterator, Range ) {
-        var parser = self, comment = parser.BC, iterator, token, sel,
-            initialRange, startRow, colDiff,
-            startRange, endRange, i, row, column,
-            comment_re = /comment/
-        ;
-        if (!comment) return;
-
-        iterator = new TokenIterator( session, cursor.row, cursor.column );
-        token = iterator.getCurrentToken();
-
-        sel = session.selection;
-        initialRange = sel.toOrientedRange();
-
-        if (token && comment_re.test(token.type)) 
-        {
-            while (token && comment_re.test(token.type)) 
-            {
-                i = token.value.indexOf(comment.start);
-                if (i != -1) 
-                {
-                    row = iterator.getCurrentTokenRow();
-                    column = iterator.getCurrentTokenColumn() + i;
-                    startRange = new Range(row, column, row, column + comment.start.length);
-                    break;
-                }
-                token = iterator.stepBackward();
-            };
-
-            iterator = new TokenIterator(session, cursor.row, cursor.column);
-            token = iterator.getCurrentToken();
-            while (token && comment_re.test(token.type)) 
-            {
-                i = token.value.indexOf(comment.end);
-                if (i != -1) 
-                {
-                    row = iterator.getCurrentTokenRow();
-                    column = iterator.getCurrentTokenColumn() + i;
-                    endRange = new Range(row, column, row, column + comment.end.length);
-                    break;
-                }
-                token = iterator.stepForward();
-            }
-            if (endRange)
-                session.remove(endRange);
-            if (startRange) 
-            {
-                session.remove(startRange);
-                startRow = startRange.start.row;
-                colDiff = -comment.start.length;
-            }
-        } 
-        else 
-        {
-            colDiff = comment.start.length;
-            startRow = range.start.row;
-            session.insert(range.end, comment.end);
-            session.insert(range.start, comment.start);
-        }
-        if (initialRange.start.row == startRow)
-            initialRange.start.column += colDiff;
-        if (initialRange.end.row == startRow)
-            initialRange.end.column += colDiff;
-        session.selection.fromOrientedRange(initialRange);
-    }
 });
 AceParser.Type = Type;
 AceParser.Fold = Folder;
@@ -3823,10 +3610,10 @@ function grammar_worker_init( e )
         ace.define('ace/grammar_worker', 
             ['require', 'exports', 'module' , 'ace/worker/mirror'], 
             function( require, exports, module ) {
-            var WorkerMirror = require("./worker/mirror").Mirror, AceGrammarWorker;
+            var WorkerMirror = require("./worker/mirror").Mirror;
             
             // extends require("./worker/mirror").Mirror
-            exports.AceGrammarWorker = AceGrammarWorker = Class(WorkerMirror, {
+            exports.AceGrammarWorker = Class(WorkerMirror, {
                 constructor: function AceGrammarWorker( sender ) {
                     var self = this;
                     WorkerMirror.call( self, sender );
@@ -3837,7 +3624,7 @@ function grammar_worker_init( e )
                 
                 ,init_parser: function( grammar, id ) {
                     var self = this;
-                    self.$parser = new AceParser( parse_grammar( grammar ) );
+                    self.$parser = new AceParser( parse_grammar( grammar ), null, false );
                     self.sender.callback( 1, id );
                 }
                 
@@ -3876,9 +3663,11 @@ function grammar_worker_init( e )
     }
 }
 
+/*
 // adapted from ace Marker renderer
+// https://github.com/ajaxorg/ace/issues/2720
 // renderer(html, range, left, top, config);
-/*function getBorderClass(tl, tr, br, bl)
+function getBorderClass(tl, tr, br, bl)
 {
     return (tl ? 1 : 0) | (tr ? 2 : 0) | (br ? 4 : 0) | (bl ? 8 : 0);
 }
@@ -3912,8 +3701,8 @@ function custom_text_marker( clazz, popup, session, Range )
             );
         }
     };
-}*/
-
+}
+*/
 function clear_markers( session, $markers )
 {
     if ( !session[$markers] ) session[$markers] = [];
@@ -3960,49 +3749,63 @@ function update_annotations( session, errors, $markers, Range )
     session.setAnnotations( errors );
 }
 
-
 function get_mode( grammar, DEFAULT, ace ) 
 {
-    // ace required helpers
     ace = ace || $ace$;  /* pass ace reference if not already available */
-    var ace_mode, grammar_copy = clone( grammar )
+    var grammar_copy = clone( grammar )
+    // ace required helpers
     ,Range = ace.require('ace/range').Range
-    ,TokenIterator = ace.require('ace/token_iterator').TokenIterator
-    // adapted from ace directly
-    ,WorkerClient = ace.require("ace/worker/worker_client").WorkerClient
+    ,WorkerClient = ace.require('ace/worker/worker_client').WorkerClient
     ,AceWorker = Class(WorkerClient, {
-        constructor: function AceWorker( topLevelNamespaces, mod, classname ) {
+        constructor: function AceWorker( topLevelNamespaces, mod, classname, workerUrl ) {
             var self = this, require = ace.require, config = ace.config;
             self.$sendDeltaQueue = self.$sendDeltaQueue.bind(self);
             self.changeListener = self.changeListener.bind(self);
             self.onMessage = self.onMessage.bind(self);
             if (require.nameToUrl && !require.toUrl) require.toUrl = require.nameToUrl;
-
-            var workerUrl;
+            
+            if ( !workerUrl )
+            {
             if (config.get("packaged") || !require.toUrl) {
-                workerUrl = config.moduleUrl(mod, "worker");
+                workerUrl = workerUrl || config.moduleUrl(mod, "worker");
             } else {
                 var normalizePath = self.$normalizePath;
-                workerUrl = normalizePath(require.toUrl("ace/worker/worker.js", null, "_"));
+                workerUrl = workerUrl || normalizePath(require.toUrl("ace/worker/worker.js", null, "_"));
 
                 var tlns = {};
                 topLevelNamespaces.forEach(function(ns) {
                     tlns[ns] = normalizePath(require.toUrl(ns, null, "_").replace(/(\.js)?(\?.*)?$/, ""));
                 });
             }
-            
-            self.$worker = new Worker( workerUrl );
-            
+            }
+
+            try {
+                self.$worker = new Worker(workerUrl);
+            } catch(e) {
+                if (e instanceof window.DOMException) {
+                    var blob = self.$workerBlob(workerUrl);
+                    var URL = window.URL || window.webkitURL;
+                    var blobURL = URL.createObjectURL(blob);
+
+                    self.$worker = new Worker(blobURL);
+                    URL.revokeObjectURL(blobURL);
+                } else {
+                    throw e;
+                }
+            }
+
             self.$worker.postMessage({
                 load: true,
-                ace_worker_base: this_path.base + '/' + config.moduleUrl("ace/worker/json")
+                // browser caches worker source file, even with reset/reload, try to not cache
+                // https://github.com/ajaxorg/ace/issues/2730
+                ace_worker_base: this_path.base + '/' + config.moduleUrl("ace/worker/json") + NOCACHE
             });
 
             self.$worker.postMessage({
                 init : true,
-                tlns: tlns,
-                module: mod,
-                classname: classname
+                tlns : tlns,
+                module : mod,
+                classname : classname
             });
 
             self.callbackId = 1;
@@ -4011,145 +3814,129 @@ function get_mode( grammar, DEFAULT, ace )
             self.$worker.onmessage = self.onMessage;
         }
     })
-    // adapted from ace directly
-    ,FoldMode = ace.require("ace/mode/folding/fold_mode").FoldMode
+    ,FoldMode = ace.require('ace/mode/folding/fold_mode').FoldMode
     ,AceFold = Class(FoldMode, {
         constructor: function( $folder ) {
             var self = this;
             FoldMode.call( self );
             self.$findFold = $folder;
+            self.$lastFold = null;
         }
         ,getFoldWidget: function( session, foldStyle, row ) {
-            var self = this, fold = self.$findFold( session, foldStyle, row );
-            if ( fold )
-            {
-                if ( "markbeginend" === foldStyle && fold.end ) return "end";
-                else return "start";
-            }
-            return "";
+            var fold = this.$lastFold = this.$findFold( session, foldStyle, row );
+            // cache the fold to be re-used in getFoldWidgetRange
+            // it is supposed that getFoldWidgetRange is called after getFoldWidget succeeds
+            // on same row and with same style, so same fold should be re-used for efficiency
+            return fold
+                ? ("markbeginend" === foldStyle && fold.end ? "end" : "start")
+                : "";
         }
         ,getFoldWidgetRange: function( session, foldStyle, row, forceMultiline ) {
-            var fold = this.$findFold( session, foldStyle, row );
+            // cache the fold to be re-used in getFoldWidgetRange
+            // it is supposed that getFoldWidgetRange is called after getFoldWidget succeeds
+            // on same row and with same style, so same fold should be re-used for efficiency
+            var fold = this.$lastFold;// this.$findFold( session, foldStyle, row );
             if ( fold ) return new Range(fold[0], fold[1], fold[2], fold[3]);
         }
     })
-    ;
-    
-    // ACE-compatible Mode
-    ace_mode = {
-        $id: uuid("ace_grammar_mode")
-        ,$parser: new AceGrammar.Parser( parse_grammar( grammar ), DEFAULT )
-        
-        /*
-        // maybe needed in later versions..?
-        ,createModeDelegates: function (mapping) { }
-        ,$delegator: function(method, args, defaultHandler) { }
-        ,HighlightRules: null
-        ,$behaviour: parser.$behaviour || null
-        ,lineCommentStart: parser.LC
-        ,blockComment: parser.BC
-        ,$getIndent: function(line) { return parser.indent(line); }
-        ,$createKeywordList: function() { return parser.$createKeywordList(); }
-        */
-        
-        ,getTokenizer: function( ) {
-            return ace_mode.$parser;
+    ,Mode = ace.require('ace/mode/text').Mode
+    ,AceMode = Class(Mode, {
+        constructor: function AceMode( ) {
+            var self = this;
+            Mode.call( self );
+            self.$id = AceMode.$id;
+            self.$tokenizer = AceMode.$parser;
+            // comment-toggle functionality
+            self.lineCommentStart = AceMode.$parser.LC;
+            self.blockComment = AceMode.$parser.BC;
+            // custom, user-defined, code folding generated from grammar
+            self.foldingRules = new AceFold( self.folder.bind( self ) );
         }
         
-        ,toggleCommentLines: function( state, session, startRow, endRow ) { 
-            return ace_mode.$parser.tCL( state, session, startRow, endRow ); 
-        }
-        ,toggleBlockComment: function( state, session, range, cursor ) { 
-            return ace_mode.$parser.tCB( state, session, range, cursor, TokenIterator, Range ); 
-        }
-        
-        ,transformAction: function( state, action, editor, session, param ) {  }
-        
-        ,getNextLineIndent: function( state, line, tab ) { 
-            return ace_mode.$parser.indent( state, line, tab ); 
-        }
-        ,checkOutdent: function( state, line, input ) {
-            return false;
-        }
-        ,autoOutdent: function( state, doc, row ) {  }
-
-        // custom, user-defined, code folding generated from grammar
-        ,supportCodeFolding: true
-        ,$folder: function folder( session, foldStyle, row ) {
-            var fold, min_row, current_row, folder;
-            if ( ace_mode.supportCodeFolding && ace_mode.$parser )
-            {
-                folder = ace_mode.$parser;
-                
-                if ( "markbeginend" === foldStyle )
-                {
-                    current_row = row; min_row = MAX(0, row-500); // check up to 500 rows up
-                    fold = folder.fold( session, row, ace );
-                    if ( fold )
-                    {
-                        fold.start = true; fold.end = false;
-                        return fold;
-                    }
-                    // try to find if any block ends on this row, backwards
-                    // TODO, maybe a bit slower, than direct backwards search
-                    while ( row > min_row && (!fold || current_row !== fold[2]) ) fold = folder.fold( session, --row, ace );
-                    if ( fold && current_row === fold[2] )
-                    {
-                        fold.start = false; fold.end = true;
-                        return fold; // found end of fold, return end marker
-                    }
-                }
-                
-                else if ( fold = folder.fold( session, row, ace ) )
-                {
-                    fold.start = true; fold.end = false;
-                    return fold;
-                }
-            }
-        }
-        ,foldingRules: null /* added below */
         // custom, user-defined, syntax lint-like validation/annotations generated from grammar
         ,supportGrammarAnnotations: false
         ,createWorker: function( session ) {
-            if ( !ace_mode.supportGrammarAnnotations ) 
+            if ( !this.supportGrammarAnnotations ) 
             {
-                clear_annotations( session, ace_mode.$id+'$markers' );
+                clear_annotations( session, AceMode.$markers );
                 return null;
             }
             
             // add this worker as an ace custom module
-            ace.config.setModuleUrl("ace/grammar_worker", this_path.file);
-            var worker = new AceWorker(['ace'], "ace/grammar_worker", 'AceGrammarWorker');
+            //ace.config.setModuleUrl("ace/grammar_worker", this_path.file + NOCACHE);
+            var worker = new AceWorker(['ace'], "ace/grammar_worker", 'AceGrammarWorker', this_path.file + NOCACHE);
             worker.attachToDocument( session.getDocument( ) );
             // create a worker for this grammar
             worker.call('init_parser', [grammar_copy], function( ){
                 // hook worker to enable error annotations
                 worker.on("ace_grammar_worker_error", function( e ) {
                     var errors = e.data;
-                    update_annotations( session, errors, ace_mode.$id+'$markers', Range )
+                    update_annotations( session, errors, AceMode.$markers, Range )
                 });
                 worker.on("ace_grammar_worker_ok", function() {
-                    clear_annotations( session, ace_mode.$id+'$markers' );
+                    clear_annotations( session, AceMode.$markers );
                 });
+            });
+            worker.on("terminate", function() {
+                clear_annotations( session, AceMode.$markers );
             });
             return worker;
         }
+        
+        // custom, user-defined, code folding generated from grammar
+        ,supportCodeFolding: true
+        ,folder: function folder( session, foldStyle, row ) {
+            return !this.supportCodeFolding
+            ? null
+            : AceMode.$folder( session, foldStyle, row, folder.options||{} );
+        }
+        
         // custom, user-defined, autocompletions generated from grammar
         ,supportAutoCompletion: true
+        ,autocompleter: function autocompleter( state, session, position, prefix ) {
+            return !this.supportAutoCompletion
+            ? []
+            : AceMode.$autocompleter( state, session, position, prefix, autocompleter.options||{} );
+        }
+        ,getKeywords: function( append ) {
+            return []; // use getCompletions
+        }
         ,getCompletions: function( state, session, position, prefix ) {
-            return ace_mode.supportAutoCompletion && ace_mode.$parser
-            ? ace_mode.$parser.autocomplete( state, session, position, prefix, options, ace )
-            : [];
+            return this.autocompleter( state, session, position, prefix );
         }
         
         ,dispose: function( ) {
-            if ( ace_mode.$parser ) ace_mode.$parser.dispose( );
-            ace_mode.$parser = null;
-            ace_mode.foldingRules = ace_mode.$folder = null;
+            var self = this;
+            self.$tokenizer = self.foldingRules = self.autocompleter = null;
+            AceMode.dispose( );
         }
+    });
+    AceMode.$id = uuid("ace_grammar_mode");
+    AceMode.$markers = AceMode.$id+'$markers';
+    AceMode.$parser = new AceGrammar.Parser( parse_grammar( grammar ), DEFAULT );
+    AceMode.$folder = function folder( session, foldStyle, row, options ) {
+        var min_row, current_row, folder = AceMode.$parser,
+            fold = folder.fold( session, row, ace );
+        if ( "markbeginend" === foldStyle )
+        {
+            if ( fold ) { fold.start = true; fold.end = false; return fold; }
+            current_row = row; min_row = MAX(0, row-200); // check up to 200 rows up for efficiency
+            // try to find if any block ends on this row, backwards
+            // TODO, maybe a bit slower, than direct backwards search
+            while ( row > min_row && (!fold || current_row !== fold[2]) ) fold = folder.fold( session, --row, ace );
+            // found end of fold, return end marker
+            if ( fold && current_row === fold[2] ) { fold.start = false; fold.end = true; return fold; }
+        }
+        else if ( fold ) { fold.start = true; fold.end = false; return fold; }
     };
-    ace_mode.foldingRules = new AceFold( ace_mode.$folder );
-    return ace_mode;
+    AceMode.$autocompleter = function autocompleter( state, session, position, prefix, options ) {
+        return AceMode.$parser.autocomplete( state, session, position, prefix, options, ace );
+    };
+    AceMode.dispose = function( ) {
+        if ( AceMode.$parser ) AceMode.$parser.dispose( );
+        AceMode.$parser = AceMode.$folder = AceMode.$autocompleter = AceMode.autocompleter = null;
+    };
+    return new AceMode( ); // object
 }
 
 

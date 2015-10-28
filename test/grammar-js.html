@@ -7,6 +7,7 @@
         <script src="ace/ace.js" type="text/javascript" data-ace-base="ace" charset="utf-8"></script>
         <script src="../build/ace_grammar.js"></script>
         <script src="grammars/javascript.js"></script>
+        <script src="grammars/json.js"></script>
         <script src="demo.js"></script>
         
         <style type="text/css">
@@ -53,7 +54,7 @@ getMode = function(grammar, DEFAULT) {
 
         <script>
         // <![CDATA[
-        ace_grammar_demo("editor", document.getElementById("code").value, js_grammar);
+        ace_grammar_demo("editor", document.getElementById("code").value, /\?json\b/.test(document.location.href) ? json_grammar : js_grammar);
         // ]]>
         </script>
     </body>
