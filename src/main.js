@@ -93,20 +93,28 @@ var AceParser = Class(Parser, {
         // user-defined folding
         if ( grammar.Fold && (T_STR & get_type(grammar.Fold)) ) FOLD = grammar.Fold[LOWER]();
         else if ( grammar.$extra.fold ) FOLD = grammar.$extra.fold[LOWER]();
-        if ( 'brace' === FOLD || 'cstyle' === FOLD )
+        if ( FOLD )
         {
-            var blocks = get_block_types( grammar, 1 );
-            TYPE = blocks.length ? AceParser.Type( blocks, false ) : TRUE;
-            self.$folders.push( AceParser.Fold.Delimited( '{', '}', TYPE ) );
-            self.$folders.push( AceParser.Fold.Delimited( '[', ']', TYPE ) );
-        }
-        else if ( 'indent' === FOLD || 'indentation' === FOLD )
-        {
-            self.$folders.push( AceParser.Fold.Indented( ) );
-        }
-        else if ( 'markup' === FOLD || 'html' === FOLD || 'xml' === FOLD )
-        {
-            self.$folders.push( AceParser.Fold.MarkedUp( ) );
+            FOLD = FOLD.split('+');  // can use multiple folders, separated by '+'
+            iterate(function( i, FOLDER ) {
+            var FOLD = trim(FOLDER[i]);
+            if ( 'brace' === FOLD || 'cstyle' === FOLD )
+            {
+                var blocks = get_block_types( grammar, 1 );
+                TYPE = blocks.length ? AceParser.Type( blocks, false ) : TRUE;
+                self.$folders.push( AceParser.Fold.Delimited( '{', '}', TYPE ) );
+                self.$folders.push( AceParser.Fold.Delimited( '[', ']', TYPE ) );
+            }
+            else if ( 'indent' === FOLD || 'indentation' === FOLD )
+            {
+                self.$folders.push( AceParser.Fold.Indented( ) );
+            }
+            else if ( 'markup' === FOLD || 'html' === FOLD || 'xml' === FOLD )
+            {
+                self.$folders.push( AceParser.Fold.Delimited( '<![CDATA[', ']]>', AceParser.Type(['comment','tag'], false) ) );
+                self.$folders.push( AceParser.Fold.MarkedUp( AceParser.Type('tag'), '<', '>', '/' ) );
+            }
+            }, 0, FOLD.length-1, FOLD);
         }
     }
     

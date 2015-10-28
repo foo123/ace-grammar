@@ -3,11 +3,20 @@ function ace_grammar_demo(_editor, code, grammar)
     document.getElementById('editor-version').innerHTML = '1.2.0';
     document.getElementById('grammar-version').innerHTML = AceGrammar.VERSION;
     
-    var editor = ace.edit(_editor);
+    var Editor = ace.require("ace/editor").Editor,
+        editor = ace.edit(_editor), session = editor.getSession();
+    
     // 2. parse the grammar into an ACE syntax-highlight mode
     var mode = AceGrammar.getMode( grammar );
-    var Editor = ace.require("ace/editor").Editor;
+    // enable syntax validation
+    mode.supportGrammarAnnotations = true;
+    // enable auto-completion
+    mode.supportAutoCompletion = true;
+    // enable code-folding
+    mode.supportCodeFolding = true;
 
+    // 3. use it with ACE
+    
     // editor commands
     var commands = {
         
@@ -36,7 +45,7 @@ function ace_grammar_demo(_editor, code, grammar)
     commands.toggleCommentBlock.bindKey = commands.defaults.toggleCommentBlock;
 
     // editpr options
-    var options = {
+    ace.config.defineOptions(Editor.prototype, "editor", {
         toggleCommentLinesKey: {
             set: function(val) {
                 if (val) 
@@ -93,17 +102,8 @@ function ace_grammar_demo(_editor, code, grammar)
             },
             value: false
         }
-    };
-    ace.config.defineOptions(Editor.prototype, "editor", options);
+    });
     
-    // enable syntax validation
-    mode.supportGrammarAnnotations = true;
-    // enable auto-completion
-    mode.supportAutoCompletion = true;
-    // enable code-folding
-    mode.supportCodeFolding = true;
-    
-    // 3. use it with ACE
     ace.config.loadModule("ace/ext/language_tools", function() {
         
         editor.setOptions({ 
@@ -116,13 +116,9 @@ function ace_grammar_demo(_editor, code, grammar)
             onlyKeywordsAutoComplete: true
         });
         editor.setValue( code, -1 );
-        editor.getSession().setMode( mode );
-        editor.getSession().setOptions({
-            useWorker: false
-        });
-        //console.log(editor.getSession().$foldStyle);
-        editor.getSession().setFoldStyle("markbeginend");
-        //console.log(editor.getSession().$foldStyle);
+        session.setMode( mode );
+        //session.setOptions({useWorker: false});
+        //session.setFoldStyle("markbeginend");
         //editor.clearSelection();
     });
     

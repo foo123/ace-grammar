@@ -147,10 +147,21 @@ var xml_grammar = {
 // 2. parse the grammar into an ACE syntax-highlight mode
 var xml_mode = AceGrammar.getMode( xml_grammar );
 
+// enable user-defined code folding in the specification (new feature)
+xml_mode.supportCodeFolding = true;
+
+// enable syntax lint-like validation in the grammar
+xml_mode.supportGrammarAnnotations = true;
+
+// enable user-defined autocompletion (if defined)
+xml_mode.supportAutoCompletion = true;
+
 // 3. use it with ACE
 var editor = ace.edit("editor");
 editor.setValue( document.getElementById("code").value, -1 );
 editor.getSession().setMode( xml_mode );
+editor.getSession().setFoldStyle("markbeginend"); // code-folding
+editor.getSession().setOptions({useWorker: true}); // lint-like annotations through workers
 
 ```
 
