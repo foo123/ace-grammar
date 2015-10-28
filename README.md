@@ -74,9 +74,9 @@ var xml_grammar = {
 // prefix ID for regular expressions, represented as strings, used in the grammar
 "RegExpID"                          : "RE::",
 
-"Extra"                     : {
+"Extra"                             : {
     
-    "fold"                  : "xml"
+    "fold"                          : "xml"
     
 },
     
@@ -157,7 +157,7 @@ xml_mode.autocompleter.options = {prefixMatch:true, caseInsensitiveMatch:false};
 var editor = ace.edit("editor");
 editor.setValue( document.getElementById("code").value, -1 );
 editor.getSession().setMode( xml_mode );
-editor.getSession().setFoldStyle("markbeginend"); // code-folding
+editor.getSession().setFoldStyle("markbegin"); // code-folding
 editor.getSession().setOptions({useWorker: true}); // lint-like annotations through workers
 
 ```
@@ -182,3 +182,4 @@ Result:
 
 ![php-grammar](/test/grammar-php.png)
 
+![scheme-grammar](/test/grammar-scheme.png)
