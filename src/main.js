@@ -46,7 +46,7 @@ this_path = (function(isNode, isBrowser, isWorker) {
 NOCACHE = '?nocache=' + uuid('nonce') + '_' + (~~(1000*Math.random( ))),
 
 // ace supposed to be available
-$ace$ = (typeof ace !== 'undefined') ? ace : { require: function() { return { }; }, config: {} }
+$ace$ = 'undefined' !== typeof ace ? ace : { require: function() { return { }; }, config: {} }
 ;
 
 
@@ -554,7 +554,7 @@ function get_mode( grammar, DEFAULT, ace )
 * __For node:__
 *
 * ```javascript
-* var AceGrammar = require('build/ace_grammar.js').AceGrammar;
+* var AceGrammar = require('build/ace_grammar.js');
 * ```
 *
 * __For browser:__
@@ -573,7 +573,7 @@ var AceGrammar = exports['@@MODULE_NAME@@'] = {
     * __Method__: `clone`
     *
     * ```javascript
-    * cloned = AceGrammar.clone( grammar [, deep=true] );
+    * cloned_grammar = AceGrammar.clone( grammar [, deep=true] );
     * ```
     *
     * Clone (deep) a `grammar`
@@ -587,7 +587,7 @@ var AceGrammar = exports['@@MODULE_NAME@@'] = {
     * __Method__: `extend`
     *
     * ```javascript
-    * extendedgrammar = AceGrammar.extend( grammar, basegrammar1 [, basegrammar2, ..] );
+    * extended_grammar = AceGrammar.extend( grammar, basegrammar1 [, basegrammar2, ..] );
     * ```
     *
     * Extend a `grammar` with `basegrammar1`, `basegrammar2`, etc..
@@ -601,21 +601,21 @@ var AceGrammar = exports['@@MODULE_NAME@@'] = {
     * __Method__: `pre_process`
     *
     * ```javascript
-    * AceGrammar.pre_process( grammar );
+    * pre_processed_grammar = AceGrammar.pre_process( grammar );
     * ```
     *
     * This is used internally by the `AceGrammar` Class `parse` method
-    * In order to pre-process, in-place, a `JSON grammar` 
-    * to transform any shorthand configurations to full object configurations and provide defaults.
+    * In order to pre-process a `JSON grammar` (in-place) to transform any shorthand configurations to full object configurations and provide defaults.
+    * It also parses `PEG`/`BNF` (syntax) notations into full (syntax) configuration objects, so merging with other grammars can be easier if needed.
     [/DOC_MARKDOWN]**/
-    pre_process: preprocess_grammar,
+    pre_process: preprocess_and_parse_grammar,
     
     // parse a grammar
     /**[DOC_MARKDOWN]
     * __Method__: `parse`
     *
     * ```javascript
-    * parsedgrammar = AceGrammar.parse( grammar );
+    * parsed_grammar = AceGrammar.parse( grammar );
     * ```
     *
     * This is used internally by the `AceGrammar` Class
