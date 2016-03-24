@@ -126,17 +126,17 @@ var AceParser = Class(Parser, {
     }
     
     ,autocomplete: function( state, session, position, prefix, options, ace ) {
-        var self = this;
+        var self = this, list = [];
         if ( !!self.$grammar.$autocomplete )
         {
             options = options || {};
             var case_insensitive_match = options[HAS]('caseInsesitiveMatch')? !!options.caseInsesitiveMatch : false,
                 prefix_match = options[HAS]('prefixMatch')? !!options.prefixMatch : true,
                 in_context = options[HAS]('inContext')? !!options.inContext : false,
-                token = prefix, token_i = token[LOWER](), len = token.length, suggestions;
-            suggestions = in_context ? self.autocompletion(state.stack.length ? [state.token,state.stack[state.stack.length-1]] : [state.token]) : self.$grammar.$autocomplete;
-            if ( !suggestions.length ) suggestions = self.$grammar.$autocomplete;
-            return operate(suggestions, function( list, word ){
+                token = prefix, token_i = token[LOWER](), len = token.length,
+                sort_by_score = false, score = 1000;
+            
+            var suggest = function suggest( list, word ){
                 var w = word.word, wl = w.length, 
                     wm, case_insensitive_word,
                     pos, pos_i, m1, m2, case_insensitive;
@@ -168,13 +168,29 @@ var AceParser = Class(Parser, {
                         value: w,
                         meta: word.meta,
                         // longer matches have lower match score
-                        score: 1000 - 10*(wl)
+                        score: sort_by_score ? 1000 - 10*(wl) : score--
                     });
                 }
                 return list;
-            }, []);
+            };
+            
+            if ( in_context )
+            {
+                sort_by_score = false;
+                list = operate(self.autocompletion( state ), suggest, list);
+                if ( !list.length )
+                {
+                    sort_by_score = true;
+                    list = operate(self.$grammar.$autocomplete, suggest, list);
+                }
+            }
+            else
+            {
+                sort_by_score = true;
+                list = operate(self.$grammar.$autocomplete, suggest, list);
+            }
         }
-        return [];
+        return list;
     }
     
     ,iterator: function( session, ace ) {
