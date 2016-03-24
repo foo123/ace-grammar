@@ -1245,7 +1245,7 @@ function generate_autocompletion( token, follows )
             {
                 follows.push.apply( follows, tok.autocompletions );
             }
-            else if ( (T_STR === tok.token.ptype) && (tok.token.pattern.length > 1) )
+            else if ( (T_STR === tok.token.ptype) && (T_STR&get_type(tok.token.pattern)) && (tok.token.pattern.length > 1) )
             {
                 follows.push( {word:''+tok.token.pattern, meta:tok.name, ci:!!tok.ci} );
             }
