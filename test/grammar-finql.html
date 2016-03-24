@@ -1,0 +1,70 @@
+<!doctype html>
+<html>
+    <head>
+        
+        <meta charset="utf-8">
+        
+        <script src="ace/ace.js" type="text/javascript" data-ace-base="ace" charset="utf-8"></script>
+        <script src="../build/ace_grammar.js"></script>
+        <script src="grammars/finql.js"></script>
+        <script src="demo.js"></script>
+        
+        <style type="text/css">
+            body {
+                position: relative;
+            }
+
+            #editor { 
+                margin: 0;
+                position: relative;
+                width: 100%;
+                height: 100%;
+                min-width:500px;
+                min-height:500px;
+            }
+        </style>
+        
+        <title>ACE: Dynamic CSS Grammar Demo</title>
+    </head>
+    <body>
+        
+        <h3>ACE (v.<span id="editor-version">0</span>) Grammar (v.<span id="grammar-version">0</span>): Dynamic FinQL Grammar</h3>
+
+<pre id="editor"></pre>
+<textarea id="code" style="display:none">ibm stock
+
+es by contract
+
+ibm basket
+
+# comments
+# comments
+# comments
+
+es continuous
+above ema 20
+until crosses above ema 50
+
+buy and inverse sell
+es continuous
+crosses above ema 20
+
+es continuous
+
+buy and inverse sell
+es continuous
+crosses above ema 20
+
+# comment
+es continuous
+above ema 20
+until crosses above ema 50</textarea>
+        <p></p>
+
+        <script>
+        // <![CDATA[
+        ace_grammar_demo("editor", document.getElementById("code").value, finql_grammar);
+        // ]]>
+        </script>
+    </body>
+</html>

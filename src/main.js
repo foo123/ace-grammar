@@ -127,33 +127,49 @@ var AceParser = Class(Parser, {
     
     ,autocomplete: function( state, session, position, prefix, options, ace ) {
         var self = this;
-        if ( self.$grammar.$autocomplete && prefix.length )
+        if ( !!self.$grammar.$autocomplete )
         {
             options = options || {};
             var case_insensitive_match = options[HAS]('caseInsesitiveMatch')? !!options.caseInsesitiveMatch : false,
                 prefix_match = options[HAS]('prefixMatch')? !!options.prefixMatch : true,
-                token = prefix, token_i = token[LOWER](), len = token.length;
-            return operate(self.$grammar.$autocomplete, function( list, word ){
+                in_context = options[HAS]('inContext')? !!options.inContext : false,
+                token = prefix, token_i = token[LOWER](), len = token.length, suggestions;
+            suggestions = in_context ? self.autocompletion(state.stack.length ? [state.token,state.stack[state.stack.length-1]] : [state.token]) : self.$grammar.$autocomplete;
+            if ( !suggestions.length ) suggestions = self.$grammar.$autocomplete;
+            return operate(suggestions, function( list, word ){
                 var w = word.word, wl = w.length, 
                     wm, case_insensitive_word,
                     pos, pos_i, m1, m2, case_insensitive;
-                if ( wl >= len )
+                if ( len )
                 {
-                    wm = word.meta;  case_insensitive_word = !!w.ci;
-                    case_insensitive = case_insensitive_match || case_insensitive_word;
-                    if ( case_insensitive ) { m1 = w[LOWER](); m2 = token_i; }
-                    else  {  m1 = w;  m2 = token; }
-                    if ( (pos_i = m1.indexOf( m2 )) >= 0 && (!prefix_match || (0 === pos_i)) )
+                    if ( wl >= len )
                     {
-                        pos = case_insensitive ? w.indexOf( token ) : pos_i;
-                        list.push({
-                            name: w,
-                            value: w,
-                            meta: wm,
-                            // longer matches or matches not at start have lower match score
-                            score: 1000 - 10*(wl-len) - 5*(pos<0?pos_i+3:pos)
-                        });
+                        wm = word.meta;  case_insensitive_word = !!w.ci;
+                        case_insensitive = case_insensitive_match || case_insensitive_word;
+                        if ( case_insensitive ) { m1 = w[LOWER](); m2 = token_i; }
+                        else  {  m1 = w;  m2 = token; }
+                        if ( (pos_i = m1.indexOf( m2 )) >= 0 && (!prefix_match || (0 === pos_i)) )
+                        {
+                            pos = case_insensitive ? w.indexOf( token ) : pos_i;
+                            list.push({
+                                name: w,
+                                value: w,
+                                meta: wm,
+                                // longer matches or matches not at start have lower match score
+                                score: 1000 - 10*(wl-len) - 5*(pos<0?pos_i+3:pos)
+                            });
+                        }
                     }
+                }
+                else
+                {
+                    list.push({
+                        name: w,
+                        value: w,
+                        meta: word.meta,
+                        // longer matches have lower match score
+                        score: 1000 - 10*(wl)
+                    });
                 }
                 return list;
             }, []);

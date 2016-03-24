@@ -12,7 +12,7 @@ function ace_grammar_demo(_editor, code, grammar)
     mode.supportGrammarAnnotations = true;
     // enable auto-completion
     mode.supportAutoCompletion = true;
-    mode.autocompleter.options = {prefixMatch:true, caseInsensitiveMatch:false};
+    mode.autocompleter.options = {prefixMatch:true, caseInsensitiveMatch:false, inContext:true};
     // enable code-folding
     mode.supportCodeFolding = true;
 
