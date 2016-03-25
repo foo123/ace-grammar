@@ -22,7 +22,7 @@ var finql_grammar = {
     ,"binaryOperator"               : "meta"
     ,"unaryOperator"                : "meta"
     ,"symbol"                       : "variable"
-    ,"field"                        : "variable.parameter"
+    ,"field"                        : "string.regexp"
     ,"indicator"                    : "variable.parameter"
     
 },
@@ -103,9 +103,8 @@ var finql_grammar = {
     
     ,"binaryCl"                     : "op2.binaryOperator"
     
-    ,"generalIndicatorForm"         : "indicator number* | field"
-    
-    ,"conditional"                  : "unaryCl | binaryCl generalIndicatorForm"
+    // use positive lookahead feature here to resolve an ambiguity
+    ,"generalIndicatorForm"         : "/[a-z]+\\s+\\d/i& indicator number* | field"
     
     ,"stopCl"                       : "trailing?.moneyManagement stop.moneyManagement number+ units"
     
@@ -113,11 +112,11 @@ var finql_grammar = {
     
     ,"horizonCl"                    : "horizon.keyword number timeUnits"
     
-    ,"limit"                        : "until.keyword (conditional stopCl? objectiveCl? horizonCl? | stopCl objectiveCl? horizonCl? | objectiveCl horizonCl? | horizonCl)"
+    ,"limit"                        : "until.keyword (condition stopCl? objectiveCl? horizonCl? | stopCl objectiveCl? horizonCl? | objectiveCl horizonCl? | horizonCl)"
     
-    //,"condition"                    : "conditional | generalIndicatorForm conditional"
+    ,"condition"                    : "unaryCl | binaryCl generalIndicatorForm"
     
-    ,"conditions"                   : "conditional (and.keyword conditional)*"
+    ,"conditions"                   : "condition (and.keyword condition)*"
     
     ,"buysell"                      : "operation (pyramid.operation number)?"
     
