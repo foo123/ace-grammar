@@ -79,9 +79,9 @@ var finql_grammar = {
     ,"symbolQualifier"              : {"tokens":"RE::/(continuous|basket|stock|(by\\b\\s+contract))\\b/",
                                         "autocomplete":["continuous","basket","stock","by contract"]}
                                         
-    ,"field"                        : {"tokens":"RE::/[a-zA-Z]+/","except":"reserved"}
+    ,"field"                        : {"tokens":["open","high","low","close","volume","oi","gap","range"],"except":"reserved","autocomplete":true}
     
-    ,"indicator"                    : {"tokens":"RE::/[a-zA-Z]+/","except":"reserved"}
+    ,"indicator"                    : {"tokens":["dema","ema","kama","linreg","mid","ma","t3","tsf","wma","maxindex","minindex","lrslope","mom","ppo","roc","trix","rsi","std","apo","macd","adx","aroonosc","atr","natr","willr","midprice","sfk","sfd","ssd","ssk","ultosc","adosc","mfi","nr","fib","wa","moa","ya"],"except":"reserved","autocomplete":true}
     
     ,"units"                        : {"tokens":["dollars","points","ticks","percent"],"autocomplete":true}
     
@@ -104,7 +104,8 @@ var finql_grammar = {
     ,"binaryCl"                     : "op2.binaryOperator"
     
     // use positive lookahead feature here to resolve an ambiguity
-    ,"generalIndicatorForm"         : "/[a-z]+\\s+\\d/i& indicator number* | field"
+    //,"generalIndicatorForm"         : "/[a-z]+\\s+\\d/i& indicator number* | field"
+    ,"generalIndicatorForm"         : "indicator number* | field"
     
     ,"stopCl"                       : "trailing?.moneyManagement stop.moneyManagement number+ units"
     
@@ -114,7 +115,7 @@ var finql_grammar = {
     
     ,"limit"                        : "until.keyword (condition stopCl? objectiveCl? horizonCl? | stopCl objectiveCl? horizonCl? | objectiveCl horizonCl? | horizonCl)"
     
-    ,"condition"                    : "unaryCl | binaryCl generalIndicatorForm"
+    ,"condition"                    : "generalIndicatorForm? (unaryCl | binaryCl generalIndicatorForm)"
     
     ,"conditions"                   : "condition (and.keyword condition)*"
     
