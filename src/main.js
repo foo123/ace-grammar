@@ -45,6 +45,8 @@ this_path = (function(isNode, isBrowser, isWorker) {
 // browser caches worker source file, even with reset/reload, try to not cache
 NOCACHE = '?nocache=' + uuid('nonce') + '_' + (~~(1000*Math.random( ))),
 
+mode_to_string = function(){ return (this.name||'')+'_'+this.state.toString(); },
+
 // ace supposed to be available
 $ace$ = 'undefined' !== typeof ace ? ace : { require: function() { return { }; }, config: {} }
 ;
@@ -54,7 +56,7 @@ $ace$ = 'undefined' !== typeof ace ? ace : { require: function() { return { }; }
 // parser factories
 var AceParser = Class(Parser, {
     constructor: function AceParser( grammar, DEFAULT, withFolders ) {
-        var self = this, FOLD = null, TYPE;
+        var self = this, FOLD = null, MATCH = null, TYPE;
         
         Parser.call(self, grammar, "text", "invalid");
         self.$v$ = 'value';
@@ -76,22 +78,38 @@ var AceParser = Class(Parser, {
                 self.$folders.push(AceParser.Fold.Delimited(
                     grammar.$comments.block[i][0],
                     grammar.$comments.block[i][1],
-                    TYPE
+                    TYPE, 'comment'
                 ));
             }
         }
         // user-defined folding
         if ( grammar.Fold && (T_STR & get_type(grammar.Fold)) ) FOLD = grammar.Fold[LOWER]();
         else if ( grammar.$extra.fold ) FOLD = grammar.$extra.fold[LOWER]();
+        // user-defined matching
+        if ( grammar.Match && (T_STR & get_type(grammar.Match)) ) MATCH = grammar.Match[LOWER]();
+        else if ( grammar.$extra.match ) MATCH = grammar.$extra.match[LOWER]();
+        else MATCH = FOLD;
+        var blocks = get_block_types( grammar, 1 );
+        TYPE = blocks.length ? AceParser.Type( blocks, false ) : TRUE;
         if ( FOLD )
         {
             FOLD = FOLD.split('+');  // can use multiple folders, separated by '+'
             iterate(function( i, FOLDER ) {
-            var FOLD = trim(FOLDER[i]);
-            if ( 'brace' === FOLD || 'cstyle' === FOLD )
+            var FOLD = trim(FOLDER[i]), p;
+            if ( 'braces' === FOLD )
             {
-                var blocks = get_block_types( grammar, 1 );
-                TYPE = blocks.length ? AceParser.Type( blocks, false ) : TRUE;
+                self.$folders.push( AceParser.Fold.Delimited( '{', '}', TYPE ) );
+            }
+            else if ( 'brackets' === FOLD )
+            {
+                self.$folders.push( AceParser.Fold.Delimited( '[', ']', TYPE ) );
+            }
+            else if ( 'parens' === FOLD || 'parentheses' === FOLD )
+            {
+                self.$folders.push( AceParser.Fold.Delimited( '(', ')', TYPE ) );
+            }
+            else if ( 'brace' === FOLD || 'cstyle' === FOLD || 'c' === FOLD )
+            {
                 self.$folders.push( AceParser.Fold.Delimited( '{', '}', TYPE ) );
                 self.$folders.push( AceParser.Fold.Delimited( '[', ']', TYPE ) );
             }
@@ -99,12 +117,50 @@ var AceParser = Class(Parser, {
             {
                 self.$folders.push( AceParser.Fold.Indented( ) );
             }
-            else if ( 'markup' === FOLD || 'html' === FOLD || 'xml' === FOLD )
+            else if ( 'tags' === FOLD || 'markup' === FOLD || 'html' === FOLD || 'xml' === FOLD )
             {
                 self.$folders.push( AceParser.Fold.Delimited( '<![CDATA[', ']]>', AceParser.Type(['comment','tag'], false) ) );
                 self.$folders.push( AceParser.Fold.MarkedUp( AceParser.Type('tag'), '<', '>', '/' ) );
             }
+            else if ( -1 < (p=FOLD.indexOf(',')) )
+            {
+                self.$folders.push( AceParser.Fold.Delimited( FOLD.slice(0,p), FOLD.slice(p+1), TYPE ) );
+            }
             }, 0, FOLD.length-1, FOLD);
+        }
+        // user-defined matching
+        if ( MATCH )
+        {
+            MATCH = MATCH.split('+');  // can use multiple matchers, separated by '+'
+            iterate(function( i, MATCHER ) {
+            var MATCH = trim(MATCHER[i]), p;
+            if ( 'braces' === MATCH )
+            {
+                self.$matchers.push( AceParser.Match.Delimited( '{', '}' ) );
+            }
+            else if ( 'brackets' === MATCH )
+            {
+                self.$matchers.push( AceParser.Match.Delimited( '[', ']' ) );
+            }
+            else if ( 'parens' === MATCH || 'parentheses' === MATCH )
+            {
+                self.$matchers.push( AceParser.Match.Delimited( '(', ')' ) );
+            }
+            else if ( 'brace' === MATCH || 'cstyle' === MATCH || 'c' === MATCH )
+            {
+                self.$matchers.push( AceParser.Match.Delimited( '{', '}' ) );
+                self.$matchers.push( AceParser.Match.Delimited( '[', ']' ) );
+                self.$matchers.push( AceParser.Match.Delimited( '(', ')' ) );
+            }
+            else if ( 'tags' === MATCH || 'markup' === MATCH || 'html' === MATCH || 'xml' === MATCH )
+            {
+                self.$matchers.push( AceParser.Match.MarkedUp( AceParser.Type('tag'), '<', '>', '/' ) );
+            }
+            else if ( -1 < (p=MATCH.indexOf(',')) )
+            {
+                self.$matchers.push( AceParser.Match.Delimited( MATCH.slice(0,p), MATCH.slice(p+1) ) );
+            }
+            }, 0, MATCH.length-1, MATCH);
         }
         }
     }
@@ -118,11 +174,31 @@ var AceParser = Class(Parser, {
         return Parser[PROTO].dispose.call( self );
     }
     
+    ,tokenize: function( stream, mode, row ) {
+        var tokens = [], token;
+        //mode.state.line = row || 0;
+        if ( stream.eol() ) { mode.state.line++; if ( mode.state.$blank$ ) mode.state.bline++; }
+        else while ( !stream.eol() ) {
+            token = mode.parser.get( stream, mode );
+            // store parser reference here
+            token.parser = mode.parser;
+            tokens.push( token );
+        }
+        return tokens;
+    }
+    
     ,getLineTokens: function( line, state, row ) {
-        var self = this;
-        state = new State( 1, state );
+        var self = this, mode;
+        if ( state )
+        {
+            mode = {parser: state.parser, state: new State( 1, state.state ), inner: state.inner, name: state.name, toString:  mode_to_string};
+        }
+        else
+        {
+            mode = {parser: self, state: new State( 1 ), inner: {}, name: null, toString: mode_to_string};
+        }
         // ACE Tokenizer compatible
-        return {tokens:self.tokenize( Stream( line ), state, row ), state:state};
+        return {tokens:mode.parser.tokenize( Stream( line ), mode, row ), state:mode};
     }
     
     ,autocomplete: function( state, session, position, prefix, options, ace ) {
@@ -214,7 +290,9 @@ var AceParser = Class(Parser, {
             return true;
         }
         ,indentation: function( line ) { return count_column( line, null, tabSize ); }
+        ,state: function( row, col ) { var s = session.getState( row ); return s.state || s; }
         ,token: function( row, col ) { return session.getTokenAt( row, col ).type; }
+        ,tokens: function( row ) { return session.getTokens( row ); }
         };
     }
     
@@ -225,13 +303,26 @@ var AceParser = Class(Parser, {
             iter = self.iterator( session, ace );
             iter.row = row; iter.col = 0;
             for (i=0; i<l; i++)
-                if ( fold = folders[ i ]( iter ) )
+                if ( (fold = folders[ i ]( iter )) || (false === fold) )
                     return fold;
+        }
+    }
+    
+    ,match: function( session, row, col, ace ) {
+        var self = this, matchers = self.$matchers, i, l = matchers.length, iter, match;
+        if ( l )
+        {
+            iter = self.iterator( session, ace );
+            iter.row = row; iter.col = col||0;
+            for (i=0; i<l; i++)
+                if ( (match = matchers[ i ]( iter )) || (false === match) )
+                    return match;
         }
     }
 });
 AceParser.Type = Type;
 AceParser.Fold = Folder;
+AceParser.Match = Matcher;
 
 if ( isWorker ) onmessage = grammar_worker_init;
 
@@ -259,9 +350,14 @@ function grammar_worker_init( e )
                 
                 ,$parser: null
                 
-                ,init_parser: function( grammar, id ) {
-                    var self = this;
-                    self.$parser = new AceParser( parse_grammar( grammar ), null, false );
+                ,init_parser: function( cfg, id ) {
+                    var self = this, subgrammars = Object.keys(cfg.subgrammars);
+                    self.$parser = new AceParser( parse_grammar( cfg.grammar ), null, false );
+                    if ( subgrammars && subgrammars.length )
+                    {
+                        for (var i=0,l=subgrammars.length; i<l; i++)
+                            self.$parser.subparser(subgrammars[i], new AceParser( parse_grammar( cfg.subgrammars[subgrammars[i]] ), null, false ));
+                    }
                     self.sender.callback( 1, id );
                 }
                 
@@ -340,10 +436,10 @@ function custom_text_marker( clazz, popup, session, Range )
     };
 }
 */
-function clear_markers( session, $markers )
+function clear_markers( session, $markers$ )
 {
-    if ( !session[$markers] ) session[$markers] = [];
-    var i, markers = session[$markers];
+    if ( !session[$markers$] ) session[$markers$] = [];
+    var i, markers = session[$markers$];
     if ( markers && markers.length )
     {
         for (i=0; i<markers.length; i++)
@@ -352,11 +448,11 @@ function clear_markers( session, $markers )
     markers.length = 0;
 }
 
-function update_markers( session, errors, $markers, Range )
+function update_markers( session, errors, $markers$, Range )
 {
     var i, l = errors.length, err, markers;
-    clear_markers( session, $markers );
-    markers = session[$markers];
+    clear_markers( session, $markers$ );
+    markers = session[$markers$];
     for (i=0; i<l; i++)
     {
         err = errors[i];
@@ -374,24 +470,25 @@ function update_markers( session, errors, $markers, Range )
     }
 }
 
-function clear_annotations( session, $markers )
+function clear_annotations( session, $markers$ )
 {
-    clear_markers( session, $markers );
+    clear_markers( session, $markers$ );
     session.clearAnnotations( );
 }
 
-function update_annotations( session, errors, $markers, Range )
+function update_annotations( session, errors, $markers$, Range )
 {
-    update_markers( session, errors, $markers, Range );
+    update_markers( session, errors, $markers$, Range );
     session.setAnnotations( errors );
 }
 
 function get_mode( grammar, DEFAULT, ace ) 
 {
     ace = ace || $ace$;  /* pass ace reference if not already available */
-    var grammar_copy = clone( grammar )
+    
+    var Range = ace.require('ace/range').Range
+    
     // ace required helpers
-    ,Range = ace.require('ace/range').Range
     ,WorkerClient = ace.require('ace/worker/worker_client').WorkerClient
     ,AceWorker = Class(WorkerClient, {
         constructor: function AceWorker( topLevelNamespaces, mod, classname, workerUrl ) {
@@ -451,51 +548,128 @@ function get_mode( grammar, DEFAULT, ace )
             self.$worker.onmessage = self.onMessage;
         }
     })
+    
     ,FoldMode = ace.require('ace/mode/folding/fold_mode').FoldMode
     ,AceFold = Class(FoldMode, {
-        constructor: function( $folder ) {
+        constructor: function( mode ) {
             var self = this;
             FoldMode.call( self );
-            self.$findFold = $folder;
-            self.$lastFold = null;
+            self.$mode = mode;
+            // cache them
+            self.$folds = { };
         }
         ,getFoldWidget: function( session, foldStyle, row ) {
-            var fold = this.$lastFold = this.$findFold( session, foldStyle, row );
-            // cache the fold to be re-used in getFoldWidgetRange
-            // it is supposed that getFoldWidgetRange is called after getFoldWidget succeeds
-            // on same row and with same style, so same fold should be re-used for efficiency
-            return fold
-                ? ("markbeginend" === foldStyle && fold.end ? "end" : "start")
-                : "";
+            var self = this, folds, fold, row0, fold0;
+            if ( !self.$mode.supportCodeFolding ) return "";
+            folds = self.$folds;
+            if ( fold = self.$mode.folder( session, foldStyle, row/*, self.$mode.folder.options||{}*/ ) )
+            {
+                // start fold
+                // cache fold start and end
+                folds[fold[0]] = folds[fold[2]] = fold;
+            }
+            else if ( fold = folds[row] )
+            {
+                // NOTE if add or remove line inside a fold range
+                // but not at the start of line, then the re-fold is NOT called
+                // so the fold markers, i.e the end marker of "markbeginend", is NOT updated
+                if ( row === fold[0] )
+                {
+                    // clear invalid fold start
+                    delete folds[row];
+                    if ( fold === folds[fold[2]] ) delete folds[fold[2]];
+                }
+                else if ( row === fold[2] )
+                {
+                    // try re-find the start fold, so to re-compute the end fold, in case it changed
+                    // this way we dont need to work backwards, 
+                    // both start-end folds can be computed fast using only forward-computing folds
+                    row0 = fold[0];
+                    if ( fold0 = self.$mode.folder( session, foldStyle, row0 ) )
+                    {
+                        // start fold
+                        // cache fold start and end
+                        folds[fold0[0]] = folds[fold0[2]] = fold0;
+                        // clear any invalid folds on these rows
+                        if ( /*folds[row0] &&*/ fold === folds[row0] ) delete folds[row0];
+                        if ( /*folds[row] &&*/ fold === folds[row] ) delete folds[row];
+                    }
+                    else
+                    {
+                        // clear invalid folds
+                        if ( fold === folds[row0] ) delete folds[row0];
+                        if ( fold === folds[row] ) delete folds[row];
+                    }
+                }
+            }
+            return fold = folds[row]
+                ? ("markbeginend" === foldStyle
+                ? ((row === fold[2]) && (fold[0] !== fold[2])
+                ? "end"
+                : "start")
+                : (row === fold[0]
+                ? "start"
+                : ""))
+                : ""
+            ;
         }
         ,getFoldWidgetRange: function( session, foldStyle, row, forceMultiline ) {
-            // cache the fold to be re-used in getFoldWidgetRange
+            if ( !this.$mode.supportCodeFolding ) return;
+            // cache the fold(s) to be re-used in getFoldWidgetRange
             // it is supposed that getFoldWidgetRange is called after getFoldWidget succeeds
             // on same row and with same style, so same fold should be re-used for efficiency
-            var fold = this.$lastFold;// this.$findFold( session, foldStyle, row );
+            var fold = this.$folds[row];// this.$findFold( session, foldStyle, row );
             if ( fold ) return new Range(fold[0], fold[1], fold[2], fold[3]);
         }
     })
+    
     ,Mode = ace.require('ace/mode/text').Mode
     ,AceMode = Class(Mode, {
-        constructor: function AceMode( ) {
+        constructor: function AceMode( grammar ) {
             var self = this;
             Mode.call( self );
-            self.$id = AceMode.$id;
-            self.$tokenizer = AceMode.$parser;
+            self.$id = uuid("ace_grammar_mode");
+            
+            // store a reference to original Grammar here
+            self.$grammar = /*clone(*/ grammar /*)*/;
+            self.$tokenizer = self.$parser = new AceGrammar.Parser( parse_grammar( grammar ), DEFAULT );
+            // store a reference to Mode here
+            self.$parser.Mode = self;
             // comment-toggle functionality
-            self.lineCommentStart = AceMode.$parser.LC;
-            self.blockComment = AceMode.$parser.BC;
+            self.lineCommentStart = self.$parser.LC;
+            self.blockComment = self.$parser.BC;
+            
+            self.$markers$ = self.$id+"$markers$";
+            
             // custom, user-defined, code folding generated from grammar
-            self.foldingRules = new AceFold( self.folder.bind( self ) );
+            self.foldType = "fold_"+self.$id;
+            self.foldingRules = new AceFold( self );
+            
+            // custom, user-defined, code matching generated from grammar
+            self.matchType = "match_"+self.$id;
+            self.matcher.clear = function( session ) {
+                if ( session.$bracketHighlight )
+                {
+                    session.removeMarker( session.$bracketHighlight );
+                    session.$bracketHighlight = null;
+                }
+                var marks = session[self.matchType];
+                session[self.matchType] = null;
+                if ( marks && marks.length )
+                {
+                    for(var i=0,l=marks.length; i<l; i++)
+                        session.removeMarker( marks[i] );
+                }
+            };
         }
         
         // custom, user-defined, syntax lint-like validation/annotations generated from grammar
         ,supportGrammarAnnotations: false
         ,createWorker: function( session ) {
-            if ( !this.supportGrammarAnnotations ) 
+            var self = this, $markers$ = self.$markers$;
+            if ( !self.supportGrammarAnnotations ) 
             {
-                clear_annotations( session, AceMode.$markers );
+                clear_annotations( session, $markers$ );
                 return null;
             }
             
@@ -504,76 +678,154 @@ function get_mode( grammar, DEFAULT, ace )
             var worker = new AceWorker(['ace'], "ace/grammar_worker", 'AceGrammarWorker', this_path.file + NOCACHE);
             worker.attachToDocument( session.getDocument( ) );
             // create a worker for this grammar
-            worker.call('init_parser', [grammar_copy], function( ){
+            worker.call('init_parser', [{grammar:self.$grammar, subgrammars:self.getSubgrammars()}], function( ){
                 // hook worker to enable error annotations
                 worker.on("ace_grammar_worker_error", function( e ) {
                     var errors = e.data;
-                    update_annotations( session, errors, AceMode.$markers, Range )
+                    update_annotations( session, errors, $markers$, Range )
                 });
                 worker.on("ace_grammar_worker_ok", function() {
-                    clear_annotations( session, AceMode.$markers );
+                    clear_annotations( session, $markers$ );
                 });
             });
             worker.on("terminate", function() {
-                clear_annotations( session, AceMode.$markers );
+                clear_annotations( session, $markers$ );
             });
             return worker;
         }
         
-        // custom, user-defined, code folding generated from grammar
-        ,supportCodeFolding: true
-        ,folder: function folder( session, foldStyle, row ) {
-            return !this.supportCodeFolding
-            ? null
-            : AceMode.$folder( session, foldStyle, row, folder.options||{} );
-        }
-        
         // custom, user-defined, autocompletions generated from grammar
         ,supportAutoCompletion: true
+        // autocompleter / getCompletions
         ,autocompleter: function autocompleter( state, session, position, prefix ) {
-            return !this.supportAutoCompletion
+            var self = this;
+            return !self.supportAutoCompletion
             ? []
-            : AceMode.$autocompleter( state, session, position, prefix, autocompleter.options||{} );
+            : state.parser.autocomplete( state.state, session, position, prefix, autocompleter.options||{}, ace );
         }
         ,getKeywords: function( append ) {
             return []; // use getCompletions
         }
-        ,getCompletions: function( state, session, position, prefix ) {
-            return this.autocompleter( state, session, position, prefix );
+        
+        // custom, user-defined, code folding generated from grammar
+        ,supportCodeFolding: true
+        ,folder: function folder( session, foldStyle, row/*, options*/ ) {
+            var s = session.getState( row ),
+                parser = (s && s.parser) || self.$parser,
+                fold = parser.fold( session, row, ace );
+            /*if ( "markbeginend" === foldStyle )
+            {
+                if ( fold ) { fold.start = true; fold.end = false; return fold; }
+                current_row = row; min_row = MAX(0, row-200); // check up to 200 rows up for efficiency
+                // try to find if any block ends on this row, backwards
+                // TODO, maybe a bit slower, than direct backwards search
+                while ( row > min_row && (!fold || current_row !== fold[2]) ) fold = folder.fold( session, --row, ace );
+                // found end of fold, return end marker
+                if ( fold && current_row === fold[2] ) { fold.start = false; fold.end = true; return fold; }
+            }
+            else*/ if ( fold ) { fold.start = true; fold.end = false; return fold; }
+        }
+        
+        // custom, user-defined, code matching generated from grammar
+        ,supportCodeMatching: true
+        ,matcher: function matcher( editor, enable ) {
+            var self = this;
+            if ( false === enable )
+            {
+                if ( editor.$highlightBrackets$ )
+                {
+                    // backup original editor method
+                    editor.$highlightBrackets = editor.$highlightBrackets$;
+                    editor.$highlightBrackets$ = null;
+                }
+                return self;
+            }
+            if ( !editor.$highlightBrackets$ )
+            {
+                // backup original editor method
+                editor.$highlightBrackets$ = editor.$highlightBrackets;
+            }
+            editor.$highlightBrackets = function( ) {
+                if ( !self.supportCodeMatching ) return;
+                var editor = this;
+                matcher.clear( editor.session );
+                if ( editor.$highlightPending ) return;
+
+                // perform highlight async to not block the browser during navigation
+                editor.$highlightPending = true;
+                setTimeout(function( ) {
+                    editor.$highlightPending = false;
+                    var sel = /*editor.getCursorPosition( )*/ editor.getSelection( ), start, end;
+                    if ( sel.isBackwards() )
+                    {
+                        start = sel.lead;
+                        end = sel.anchor;
+                    }
+                    else
+                    {
+                        start = sel.anchor;
+                        end = sel.lead;
+                    }
+                    var parser = editor.session.getTokenAt( end.row, end.column ).parser || self.$parser;
+                    var range = parser.match( editor.session, end.row, end.column, ace );
+                    if ( null != range )
+                    {
+                        if ( false === range )
+                        {
+                            if ( sel.isEmpty() )
+                            {
+                                editor.session[self.matchType] = [
+                                editor.session.addMarker(new Range(end.row, end.column-1, end.row, end.column), "ace_error-marker", "text")
+                                ];
+                            }
+                            else
+                            {
+                                editor.session[self.matchType] = [
+                                editor.session.addMarker(new Range(start.row, start.column, end.row, end.column), "ace_error-marker", "text")
+                                ];
+                            }
+                        }
+                        else if ( false === range.match )
+                        {
+                            editor.session[self.matchType] = [
+                            editor.session.addMarker(new Range(range[0], range[1], range[2], range[3]), "ace_error-marker", "text")
+                            ];
+                        }
+                        else
+                        {
+                            editor.session[self.matchType] = [
+                            editor.session.addMarker(new Range(range[0], range[1], range[2], range[3]), "ace_selection"/*"ace_bracket"*/, "text"),
+                            editor.session.addMarker(new Range(range[4], range[5], range[6], range[7]), "ace_selection"/*"ace_bracket"*/, "text")
+                            ];
+                        }
+                    }
+                }, 50);
+            };
+            return self;
+        }
+        
+        ,getSubgrammars: function( ) {
+            var self = this, parser = self.$parser,
+                langs = Object.keys(parser.$subgrammars),
+                subgrammars = {};
+            for(var i=0,l=langs.length; i<l; i++) subgrammars[langs[i]] = parser.$subgrammars[langs[i]].Mode.$grammar;
+            return subgrammars;
+        }
+        ,submode: function( lang, mode ) {
+            var self = this;
+            self.$parser.subparser( lang, mode.$parser );
+            return self;
         }
         
         ,dispose: function( ) {
             var self = this;
-            self.$tokenizer = self.foldingRules = self.autocompleter = null;
-            AceMode.dispose( );
+            if ( self.$parser ) self.$parser.dispose( );
+            self.$tokenizer = self.$parser = self.$grammar = self.autocompleter = self.getCompletions = self.foldingRules = self.folder = self.matcher = null;
         }
     });
-    AceMode.$id = uuid("ace_grammar_mode");
-    AceMode.$markers = AceMode.$id+'$markers';
-    AceMode.$parser = new AceGrammar.Parser( parse_grammar( grammar ), DEFAULT );
-    AceMode.$folder = function folder( session, foldStyle, row, options ) {
-        var min_row, current_row, folder = AceMode.$parser,
-            fold = folder.fold( session, row, ace );
-        if ( "markbeginend" === foldStyle )
-        {
-            if ( fold ) { fold.start = true; fold.end = false; return fold; }
-            current_row = row; min_row = MAX(0, row-200); // check up to 200 rows up for efficiency
-            // try to find if any block ends on this row, backwards
-            // TODO, maybe a bit slower, than direct backwards search
-            while ( row > min_row && (!fold || current_row !== fold[2]) ) fold = folder.fold( session, --row, ace );
-            // found end of fold, return end marker
-            if ( fold && current_row === fold[2] ) { fold.start = false; fold.end = true; return fold; }
-        }
-        else if ( fold ) { fold.start = true; fold.end = false; return fold; }
-    };
-    AceMode.$autocompleter = function autocompleter( state, session, position, prefix, options ) {
-        return AceMode.$parser.autocomplete( state, session, position, prefix, options, ace );
-    };
-    AceMode.dispose = function( ) {
-        if ( AceMode.$parser ) AceMode.$parser.dispose( );
-        AceMode.$parser = AceMode.$folder = AceMode.$autocompleter = AceMode.autocompleter = null;
-    };
-    return new AceMode( ); // object
+    // alias
+    AceMode.prototype.getCompletions = AceMode.prototype.autocompleter;
+    return new AceMode( grammar ); // object
 }
 
 
