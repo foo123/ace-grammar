@@ -45,7 +45,7 @@ this_path = (function(isNode, isBrowser, isWorker) {
 // browser caches worker source file, even with reset/reload, try to not cache
 NOCACHE = '?nocache=' + uuid('nonce') + '_' + (~~(1000*Math.random( ))),
 
-mode_to_string = function(){ return (this.name||'')+'_'+this.state.toString(); },
+mode_to_string = function(){ return (this.name||'')+'==>'+this.state.toString(); },
 
 // ace supposed to be available
 $ace$ = 'undefined' !== typeof ace ? ace : { require: function() { return { }; }, config: {} }
@@ -180,8 +180,8 @@ var AceParser = Class(Parser, {
         if ( stream.eol() ) { mode.state.line++; if ( mode.state.$blank$ ) mode.state.bline++; }
         else while ( !stream.eol() ) {
             token = mode.parser.get( stream, mode );
-            // store parser reference here
-            token.parser = mode.parser;
+            // store mode reference here
+            token.mode = mode;
             tokens.push( token );
         }
         return tokens;
@@ -632,9 +632,10 @@ function get_mode( grammar, DEFAULT, ace )
             
             // store a reference to original Grammar here
             self.$grammar = /*clone(*/ grammar /*)*/;
-            self.$tokenizer = self.$parser = new AceGrammar.Parser( parse_grammar( grammar ), DEFAULT );
+            self.$parser = new AceGrammar.Parser( parse_grammar( grammar ), DEFAULT );
             // store a reference to Mode here
             self.$parser.Mode = self;
+            self.$tokenizer = self.$parser;
             // comment-toggle functionality
             self.lineCommentStart = self.$parser.LC;
             self.blockComment = self.$parser.BC;
@@ -766,7 +767,8 @@ function get_mode( grammar, DEFAULT, ace )
                         start = sel.anchor;
                         end = sel.lead;
                     }
-                    var parser = editor.session.getTokenAt( end.row, end.column ).parser || self.$parser;
+                    var t = editor.session.getTokenAt( end.row, end.column-1 ),
+                        parser = t && t.mode ? t.mode.parser : self.$parser;
                     var range = parser.match( editor.session, end.row, end.column, ace );
                     if ( null != range )
                     {
