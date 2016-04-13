@@ -711,7 +711,7 @@ function get_mode( grammar, DEFAULT, ace )
         // custom, user-defined, code folding generated from grammar
         ,supportCodeFolding: true
         ,folder: function folder( session, foldStyle, row/*, options*/ ) {
-            var s = session.getState( row ),
+            var self = this, s = session.getState( row ),
                 parser = (s && s.parser) || self.$parser,
                 fold = parser.fold( session, row, ace );
             /*if ( "markbeginend" === foldStyle )

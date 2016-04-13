@@ -122,7 +122,9 @@ class ExampleClass(ParentClass):
 
         <script>
         // <![CDATA[
-        ace_grammar_demo("editor", document.getElementById("code").value, python_grammar);
+        ace_grammar_demo("editor", document.getElementById("code").value, [
+            {language : "python", grammar : python_grammar}
+        ]);
         // ]]>
         </script>
     </body>

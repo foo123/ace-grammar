@@ -52,7 +52,9 @@ var obj = {
 
         <script>
         // <![CDATA[
-        ace_grammar_demo("editor", document.getElementById("code").value, js_grammar);
+        ace_grammar_demo("editor", document.getElementById("code").value, [
+            {language : "javascript", grammar : js_grammar}
+        ]);
         // ]]>
         </script>
     </body>

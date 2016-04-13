@@ -68,7 +68,9 @@ code {
 
         <script>
         // <![CDATA[
-        ace_grammar_demo("editor", document.getElementById("code").value, css_grammar);
+        ace_grammar_demo("editor", document.getElementById("code").value, [
+            {language : "css", grammar : css_grammar}
+        ]);
         // ]]>
         </script>
     </body>

@@ -51,7 +51,8 @@ Code Indentation, Behaviours, Matching are ACE defaults, see [Modularity and Fut
 * [`Grammar.Syntax Model`](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#syntax-model) can enable highlight in a more *context-specific* way, plus detect possible *syntax errors* and display appropriate *error messages* (see below)
 * [`Grammar.Syntax Model`](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#syntax-model) can contain **recursive references** (see `/test/grammar-js-recursion.html`)
 * [`Grammar.Syntax Model`](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#syntax-pegbnf-like-notations) can be (fully) specificed using [`PEG`](https://en.wikipedia.org/wiki/Parsing_expression_grammar)-like notation or [`BNF`](https://en.wikipedia.org/wiki/Backus%E2%80%93Naur_Form)-like notation  (**NEW feature**)
-* [`Grammar.Syntax Model`](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#syntax-pegbnf-like-notations) implements **positive / negative lookahead tokens** (analogous to `PEG` `and-`/`not-` entities)  (**NEW feature**)
+* [`Grammar.Syntax Model`](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#syntax-pegbnf-like-notations) implements **positive / negative lookahead tokens** (analogous to `PEG` `and-`/`not-` predicates)  (**NEW feature**)
+* [`Grammar.Syntax Model`](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#syntax-model) can include **external (sub-)grammars so that new multiplexed / mixed grammars** are created easily and intuitively (see test examples) (**NEW feature**)
 * `Grammar` can define [*action* tokens](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#action-tokens) to perform *complex context-specific* parsing functionality, including **associated tag matching** and **duplicate identifiers** (see for example `xml.grammar` example) (**NEW feature**)
 * Generated highlight modes can support **toggle comments** and **keyword autocompletion** functionality if defined in the grammar
 * **Context-sensitive autocompletion** extracted directly from the grammar specification  (**NEW feature**)
@@ -176,6 +177,8 @@ Result:
 
 ###Other Examples:
 
+
+![htmlmixed-grammar](/test/grammar-htmlmixed.png)
 
 ![js-recursive-grammar](/test/grammar-js-recursion.png)
 ![js-recursive-grammar-autocomplete](/test/grammar-js-recursion-2.png)

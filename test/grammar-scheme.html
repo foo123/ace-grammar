@@ -78,7 +78,9 @@
 
         <script>
         // <![CDATA[
-        ace_grammar_demo("editor", document.getElementById("code").value, scheme_grammar);
+        ace_grammar_demo("editor", document.getElementById("code").value, [
+            {language : "scheme", grammar : scheme_grammar}
+        ]);
         // ]]>
         </script>
     </body>

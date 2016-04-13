@@ -1,4 +1,4 @@
-function ace_grammar_demo(_editor, code, grammar)
+function ace_grammar_demo(_editor, code, langs)
 {
     document.getElementById('editor-version').innerHTML = '1.2.0';
     document.getElementById('grammar-version').innerHTML = AceGrammar.VERSION;
@@ -6,16 +6,39 @@ function ace_grammar_demo(_editor, code, grammar)
     var Editor = ace.require("ace/editor").Editor,
         editor = ace.edit(_editor), session = editor.getSession();
     
+    var main_lang, main_mode;
+    
+    for (var i=0,l=langs.length; i<l; i++)
+    {
+    var lang = langs[i].language, grammar = langs[i].grammar, mode;
+    
     // 2. parse the grammar into an ACE syntax-highlight mode
-    var mode = AceGrammar.getMode( grammar );
-    // enable syntax validation
-    mode.supportGrammarAnnotations = true;
-    // enable auto-completion
-    mode.supportAutoCompletion = true;
-    mode.autocompleter.options = {prefixMatch:true, caseInsensitiveMatch:false, inContext:true};
-    // enable code-folding
-    mode.supportCodeFolding = true;
-
+    mode = AceGrammar.getMode( grammar );
+    mode.name = lang;
+    
+    if ( 0 === i )
+    {
+        // main mode
+        main_lang = lang; main_mode = mode;
+        
+        // enable syntax validation
+        main_mode.supportGrammarAnnotations = true;
+        // enable auto-completion
+        main_mode.supportAutoCompletion = true;
+        main_mode.autocompleter.options = {prefixMatch:true, caseInsensitiveMatch:false, inContext:true};
+        // enable code-folding
+        main_mode.supportCodeFolding = true;
+        // enable code-matching
+        main_mode.supportCodeMatching = true;
+    }
+    else
+    {
+        // submodes
+        // add any sub/inner modes to main mode
+        main_mode.submode( lang, mode );
+    }
+    }
+    
     // 3. use it with ACE
     
     // editor commands
@@ -116,10 +139,11 @@ function ace_grammar_demo(_editor, code, grammar)
         editor.setOptions({ 
             onlyKeywordsAutoComplete: true
         });
+        main_mode.matcher( editor );
         editor.setValue( code, -1 );
-        session.setMode( mode );
+        session.setMode( main_mode );
         //session.setOptions({useWorker: false});
-        //session.setFoldStyle("markbeginend");
+        session.setFoldStyle("markbeginend");
         //editor.clearSelection();
     });
     

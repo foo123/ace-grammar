@@ -57,7 +57,9 @@
 
         <script>
         // <![CDATA[
-        ace_grammar_demo("editor", document.getElementById("code").value, xml_grammar);
+        ace_grammar_demo("editor", document.getElementById("code").value, [
+            {language : "xml", grammar : xml_grammar}
+        ]);
         // ]]>
         </script>
     </body>

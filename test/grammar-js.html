@@ -54,7 +54,9 @@ getMode = function(grammar, DEFAULT) {
 
         <script>
         // <![CDATA[
-        ace_grammar_demo("editor", document.getElementById("code").value, /\?json\b/.test(document.location.href) ? json_grammar : js_grammar);
+        ace_grammar_demo("editor", document.getElementById("code").value, [
+            /\?json\b/.test(document.location.href) ? {language : "json", grammar : json_grammar} : {language : "javascript", grammar : js_grammar}
+        ]);
         // ]]>
         </script>
     </body>

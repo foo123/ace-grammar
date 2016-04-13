@@ -63,7 +63,9 @@ until crosses above ema 50</textarea>
 
         <script>
         // <![CDATA[
-        ace_grammar_demo("editor", document.getElementById("code").value, finql_grammar);
+        ace_grammar_demo("editor", document.getElementById("code").value, [
+            {language : "finql", grammar : finql_grammar}
+        ]);
         // ]]>
         </script>
     </body>
