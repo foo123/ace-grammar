@@ -31,11 +31,11 @@ See also:  [codemirror-grammar](https://github.com/foo123/codemirror-grammar), [
 
 ###Todo
 
-Code Indentation, Behaviours, Matching are ACE defaults, see [Modularity and Future Directions](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#modularity-and-future-directions)
+Code Indentation is ACE default, see [Modularity and Future Directions](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#modularity-and-future-directions)
 
 
 * handle arbitrary, user-defined, code `(de-)indentation` in the `grammar` specification (e.g via `indent action` tokens)
-* handle arbitrary, user-defined, code `matching` (e.g `brackets`, `tags`, etc..) in the `grammar` specification (e.g via `match action` tokens)
+* handle arbitrary, user-defined, code `matching` (e.g `brackets`, `tags`, etc..) in the `grammar` specification (e.g via `match action` tokens) [DONE]
 * handle arbitrary, user-defined, `(operator) precedence` relations in the `grammar` specification (e.g via `precedence action` tokens)
 * handle arbitrary, user-defined, `local/global/scoped` relations in the `grammar` specification (e.g via `scope action` tokens)
 * and so on..
