@@ -850,7 +850,7 @@ function get_mode( grammar, DEFAULT, ace )
 * ```
 *
 [/DOC_MARKDOWN]**/
-var AceGrammar = exports['@@MODULE_NAME@@'] = {
+var AceGrammar = {
     
     VERSION: "@@VERSION@@",
     
