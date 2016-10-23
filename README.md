@@ -18,7 +18,7 @@ See also:  [codemirror-grammar](https://github.com/foo123/codemirror-grammar), [
 
 ###Contents
 
-* [Live Example](http://foo123.github.io/examples/ace-grammar)
+* [Live Playground Example](http://foo123.github.io/examples/ace-grammar)
 * [Todo](#todo)
 * [Features](#features)
 * [How To use](#how-to-use)
