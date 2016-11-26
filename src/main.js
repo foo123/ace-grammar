@@ -174,8 +174,9 @@ var AceParser = Class(Parser, {
         return Parser[PROTO].dispose.call( self );
     }
     
-    ,tokenize: function( stream, mode, row ) {
-        var tokens = [], token;
+    ,tokenize: function( stream, mode, row, tokens ) {
+        var token;
+        tokens = tokens || [];
         //mode.state.line = row || 0;
         if ( stream.eol() ) { mode.state.line++; if ( mode.state.$blank$ ) mode.state.bline++; }
         else while ( !stream.eol() ) {
