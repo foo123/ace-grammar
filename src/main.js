@@ -203,14 +203,16 @@ var AceParser = Class(Parser, {
     }
     
     ,autocomplete: function( state, session, position, prefix, options, ace ) {
-        var self = this, list = [];
-        if ( !!self.$grammar.$autocomplete )
+        options = options || {};
+        var self = this, list = [],
+            case_insensitive_match = options[HAS]('caseInsesitiveMatch')? !!options.caseInsesitiveMatch : false,
+            prefix_match = options[HAS]('prefixMatch')? !!options.prefixMatch : true,
+            in_context = options[HAS]('inContext')? !!options.inContext : false,
+            dynamic = options[HAS]('dynamic')? !!options.dynamic : false
+        ;
+        if ( dynamic || !!self.$grammar.$autocomplete )
         {
-            options = options || {};
-            var case_insensitive_match = options[HAS]('caseInsesitiveMatch')? !!options.caseInsesitiveMatch : false,
-                prefix_match = options[HAS]('prefixMatch')? !!options.prefixMatch : true,
-                in_context = options[HAS]('inContext')? !!options.inContext : false,
-                token = prefix, token_i = token[LOWER](), len = token.length,
+            var token = prefix, token_i = token[LOWER](), len = token.length,
                 sort_by_score = false, score = 1000;
             
             var suggest = function suggest( list, word ){
@@ -251,11 +253,11 @@ var AceParser = Class(Parser, {
                 return list;
             };
             
-            if ( in_context )
+            if ( dynamic || in_context )
             {
                 sort_by_score = false;
-                list = operate(self.autocompletion( state ), suggest, list);
-                if ( !list.length )
+                list = operate(self.autocompletion( state, null, dynamic ), suggest, list);
+                if ( !list.length && !!self.$grammar.$autocomplete )
                 {
                     sort_by_score = true;
                     list = operate(self.$grammar.$autocomplete, suggest, list);

@@ -25,7 +25,7 @@ function ace_grammar_demo(_editor, code, langs)
         main_mode.supportGrammarAnnotations = true;
         // enable auto-completion
         main_mode.supportAutoCompletion = true;
-        main_mode.autocompleter.options = {prefixMatch:true, caseInsensitiveMatch:false, inContext:true};
+        main_mode.autocompleter.options = {prefixMatch:true, caseInsensitiveMatch:false, inContext:true, dynamic:true};
         // enable code-folding
         main_mode.supportCodeFolding = true;
         // enable code-matching
