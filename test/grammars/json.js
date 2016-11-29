@@ -35,10 +35,6 @@ var json_grammar = {
                                 // integers
                                 // hex
                                 "RE::/0x[0-9a-fA-F]+L?/",
-                                // binary
-                                "RE::/0b[01]+L?/",
-                                // octal
-                                "RE::/0o[0-7]+L?/",
                                 // decimal
                                 "RE::/[1-9]\\d*(e[\\+\\-]?\\d+)?L?/",
                                 // just zero
