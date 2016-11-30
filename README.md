@@ -4,6 +4,7 @@ ace-grammar
 __Transform a JSON grammar into an ACE syntax-highlight parser__
 
 
+![Ace Grammar](/ace-grammar.png)
 
 A simple and light-weight (~ 57kB minified, ~ 19kB zipped) [ACE](https://github.com/ajaxorg/ace) add-on
 
