@@ -204,13 +204,17 @@ var AceParser = Class(Parser, {
     
     ,autocomplete: function( state, session, position, prefix, options, ace ) {
         options = options || {};
-        var self = this, list = [],
-            case_insensitive_match = options[HAS]('caseInsesitiveMatch')? !!options.caseInsesitiveMatch : false,
-            prefix_match = options[HAS]('prefixMatch')? !!options.prefixMatch : true,
-            in_context = options[HAS]('inContext')? !!options.inContext : false,
-            dynamic = options[HAS]('dynamic')? !!options.dynamic : false
+        var parser = this, list = [],
+            case_insensitive_match = HAS.call(options,'caseInsesitiveMatch')? !!options.caseInsesitiveMatch : false,
+            prefix_match = HAS.call(options,'prefixMatch')? !!options.prefixMatch : true,
+            in_context = HAS.call(options,'inContext')? !!options.inContext : false,
+            dynamic = HAS.call(options,'dynamic')? !!options.dynamic : false,
+            grammar_tokens = parser.$grammar.$autocomplete && parser.$grammar.$autocomplete.length ? parser.$grammar.$autocomplete : null,
+            dynamic_tokens = dynamic ? parser.dynamic_autocompletion( state ) : null
         ;
-        if ( dynamic || !!self.$grammar.$autocomplete )
+        if ( dynamic_tokens && !dynamic_tokens.length ) dynamic_tokens = null;
+        
+        if ( dynamic_tokens || grammar_tokens )
         {
             var token = prefix, token_i = token[LOWER](), len = token.length,
                 sort_by_score = false, score = 1000;
@@ -253,20 +257,16 @@ var AceParser = Class(Parser, {
                 return list;
             };
             
-            if ( dynamic || in_context )
+            if ( in_context )
             {
                 sort_by_score = false;
-                list = operate(self.autocompletion( state, null, dynamic ), suggest, list);
-                if ( !list.length && !!self.$grammar.$autocomplete )
-                {
-                    sort_by_score = true;
-                    list = operate(self.$grammar.$autocomplete, suggest, list);
-                }
+                list = operate(parser.autocompletion( state, null, dynamic_tokens ), suggest, list);
             }
-            else
+            if ( dynamic_tokens && !dynamic_tokens.length ) dynamic_tokens = null;
+            if ( !list.length && (dynamic_tokens || grammar_tokens) )
             {
                 sort_by_score = true;
-                list = operate(self.$grammar.$autocomplete, suggest, list);
+                list = operate((dynamic_tokens || []).concat(grammar_tokens || []), suggest, list);
             }
         }
         return list;
@@ -379,7 +379,7 @@ function grammar_worker_init( e )
                     errors = [];
                     for (err in code_errors)
                     {
-                        if ( !code_errors[HAS](err) ) continue;
+                        if ( !HAS.call(code_errors,err) ) continue;
                         
                         error = code_errors[err];
                         errors.push({
