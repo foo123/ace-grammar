@@ -17,7 +17,7 @@ See also:  [codemirror-grammar](https://github.com/foo123/codemirror-grammar), [
 
 
 
-###Contents
+### Contents
 
 * [Live Playground Example](http://foo123.github.io/examples/ace-grammar)
 * [Todo](#todo)
@@ -30,7 +30,7 @@ See also:  [codemirror-grammar](https://github.com/foo123/codemirror-grammar), [
 [![Build your own syntax-highlight mode on the fly](/test/screenshot.png)](http://foo123.github.io/examples/ace-grammar)
 
 
-###Todo
+### Todo
 
 Code Indentation is ACE default, see [Modularity and Future Directions](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#modularity-and-future-directions)
 
@@ -44,7 +44,7 @@ Code Indentation is ACE default, see [Modularity and Future Directions](https://
 
 
 
-###Features
+### Features
 
 * A [`Grammar`](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md) can **extend other `Grammars`** (so arbitrary `variations` and `dialects` can be handled more easily)
 * `Grammar` includes: [`Style Model`](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#style-model) , [`Lex Model`](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#lexical-model) and [`Syntax Model` (optional)](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#syntax-model), plus a couple of [*settings*](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#extra-settings) (see examples)
@@ -66,7 +66,7 @@ Code Indentation is ACE default, see [Modularity and Future Directions](https://
 * see also [Modularity and Future Directions](https://github.com/foo123/editor-grammar/blob/master/grammar-reference.md#modularity-and-future-directions)
 
 
-###How to use:
+### How to use:
 
 See working examples under [/test](/test) folder.
 
@@ -182,7 +182,7 @@ Result:
 
 
 
-###Other Examples:
+### Other Examples:
 
 
 ![htmlmixed-grammar](/test/grammar-htmlmixed.png)
